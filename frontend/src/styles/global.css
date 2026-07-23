@@ -1,0 +1,83 @@
+:root {
+  /* ── Paleta ──────────────────────────────────────────────
+     Clínica, não corporativa-genérica: verde-azulado profundo
+     (associação com ambiente odontológico/esterilizado, sem cair
+     no azul-roxo SaaS padrão), sobre neutros frios. */
+  --color-primary: #0f5e5a;       /* teal profundo — ações principais */
+  --color-primary-hover: #0b4a47;
+  --color-primary-soft: #e3efee;  /* fundo de destaque suave */
+
+  --color-bg: #f6f8f8;            /* fundo da aplicação */
+  --color-surface: #ffffff;       /* cards, painéis */
+  --color-border: #dde5e4;
+
+  --color-text: #1a2b2a;
+  --color-text-muted: #5c6f6d;
+
+  --color-success: #4d8b6f;
+  --color-warning: #c98a2e;       /* alertas de estoque / pendências */
+  --color-danger: #b5473f;        /* cancelamentos, inadimplência */
+
+  /* ── Tipografia ───────────────────────────────────────── */
+  --font-display: 'Space Grotesk', 'Segoe UI', sans-serif; /* títulos */
+  --font-body: 'Inter', 'Segoe UI', sans-serif;             /* texto corrido, UI */
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;   /* valores financeiros, horários */
+
+  /* ── Layout ──────────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --shadow-sm: 0 1px 2px rgba(15, 40, 38, 0.06);
+  --shadow-md: 0 4px 16px rgba(15, 40, 38, 0.08);
+  --sidebar-width: 240px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+/* Foco visível — acessibilidade, não decoração */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

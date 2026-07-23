@@ -1,0 +1,63 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { PatientsService } from '../services/patients.service';
+import { CreatePatientDto } from '../dto/create-patient.dto';
+import { UpdatePatientDto } from '../dto/update-patient.dto';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { AuthenticatedUser, UserRole } from '../../../common/interfaces/user-role.enum';
+
+@ApiTags('patients')
+@ApiBearerAuth()
+@Controller('patients')
+export class PatientsController {
+  constructor(private readonly patientsService: PatientsService) {}
+
+  @Post()
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePatientDto) {
+    return this.patientsService.create(user.clinicId, dto);
+  }
+
+  @Get()
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DENTIST)
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('search') search?: string,
+  ) {
+    return this.patientsService.findAll(user.clinicId, { page, limit }, search);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DENTIST)
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.patientsService.findOne(user.clinicId, id);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdatePatientDto,
+  ) {
+    return this.patientsService.update(user.clinicId, id, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.patientsService.remove(user.clinicId, id);
+  }
+}
