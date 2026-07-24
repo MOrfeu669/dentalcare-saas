@@ -88,8 +88,43 @@ na ordem sugerida de dependência:
 
 ## Banco de dados
 
-Ainda não geradas as migrations. Sugestão de próximo passo: rodar
-`npm run migration:generate` a partir das entidades já criadas
-(Clinic, User, Patient, Appointment, Room, TreatmentPlan) para termos
-as primeiras tabelas reais no Supabase, e então seguir preenchendo o
-schema módulo a módulo junto com o código.
+Migration inicial gerada e **testada de ponta a ponta** (subida e
+revertida) em um Postgres local: `backend/src/database/migrations/*-InitialSchema.ts`.
+Cria `clinics`, `users`, `patients`, `rooms`, `appointments` e
+`treatment_plans`, com enums, índices (`clinic_id`, e os índices
+compostos usados pelo `AppointmentConflictCheckerService`) e as FKs já
+existentes (`users.clinic_id`, `appointments.room_id`).
+
+A migration cria explicitamente a extensão `uuid-ossp`
+(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`) antes de qualquer
+tabela — no Supabase ela já vem habilitada por padrão, mas isso
+garante que a migration funciona em qualquer Postgres novo, sem
+depender disso.
+
+Para gerar a próxima migration (depois de implementar os módulos
+stub, na ordem sugerida acima):
+```bash
+cd backend
+npm run migration:generate -- src/database/migrations/NomeDaMudanca
+npm run migration:run
+```
+
+## Seeds (dados de exemplo)
+
+`backend/src/database/seeds/run-seeds.ts` — **testado de ponta a
+ponta**, inclusive idempotência (rodar duas vezes não duplica nada;
+cada entidade é checada por sua chave natural antes de inserir: CNPJ,
+e-mail, nome da sala, CPF).
+
+Popula 1 clínica, 4 usuários (1 admin, 2 dentistas, 1 recepcionista),
+3 salas e 3 pacientes. Os dados ficam em `seed-data.ts`, separados da
+lógica de inserção, para facilitar editar/adicionar registros sem
+mexer no script.
+
+```bash
+cd backend
+npm run seed
+```
+
+Login de teste após rodar: `admin@odontovida.com.br` / `Senha123!`
+(hash bcrypt validado manualmente contra a senha em texto puro).
