@@ -5,8 +5,8 @@ export class InitialSchema1784834203273 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         // Necessária para uuid_generate_v4() usado como default das PKs.
-        // No Supabase já vem habilitada por padrão; em um Postgres "cru"
-        // (ex.: ambiente de teste local), precisa ser criada explicitamente.
+        // Em um Postgres local "cru" (como este), precisa ser criada
+        // explicitamente — por isso está aqui, e não como pré-requisito manual.
         await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
         await queryRunner.query(`CREATE TABLE "clinics" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying(150) NOT NULL, "cnpj" character varying(18) NOT NULL, "phone" character varying(30), "email" character varying(150), "business_hours" jsonb, "active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_4ab0ea5c03a4994cee1897615ed" UNIQUE ("cnpj"), CONSTRAINT "PK_5513b659e4d12b01a8ab3956abc" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TYPE "public"."users_role_enum" AS ENUM('admin', 'dentist', 'receptionist')`);

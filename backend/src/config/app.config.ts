@@ -10,9 +10,10 @@ export default registerAs('app', () => ({
     refreshSecret: process.env.JWT_REFRESH_SECRET,
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   },
-  supabase: {
-    url: process.env.SUPABASE_URL,
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    storageBucket: process.env.SUPABASE_STORAGE_BUCKET ?? 'clinical-files',
+  storage: {
+    // Disco local (radiografias, documentos do prontuário). Sem
+    // dependência de serviço externo — arquivo salvo em STORAGE_LOCAL_PATH
+    // e servido via endpoint autenticado do próprio NestJS.
+    localPath: process.env.STORAGE_LOCAL_PATH ?? './uploads',
   },
 }));

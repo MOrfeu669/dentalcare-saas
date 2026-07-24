@@ -9,7 +9,7 @@ outro módulo diretamente) — isso é o que torna viável, no futuro,
 extrair um módulo para um microsserviço próprio sem reescrever tudo.
 
 O front-end (React) fala exclusivamente com a API REST do NestJS.
-Nunca acessa o Postgres/Supabase diretamente.
+Nunca acessa o Postgres diretamente.
 
 ## Multi-tenancy
 
@@ -27,13 +27,13 @@ service filtrar por `clinic_id`, isso é reforçado estruturalmente por:
 
 ## Autenticação
 
-JWT emitido pelo próprio NestJS (`AuthModule`), não pelo Supabase Auth.
-O Supabase, neste projeto, é usado como Postgres gerenciado (e, no
-futuro, Storage para radiografias/documentos) — a decisão de segurança
-("Segurança baseada em autenticação JWT") fica inteiramente sob
-controle da aplicação. Se no futuro fizer sentido usar o Supabase Auth
-nativo (ex.: para ganhar login social), isso troca apenas o
-`AuthModule`, sem impacto nos demais módulos.
+JWT emitido pelo próprio NestJS (`AuthModule`). O banco é PostgreSQL
+rodando localmente (sem dependência de nuvem) — a decisão de
+segurança ("Segurança baseada em autenticação JWT") fica inteiramente
+sob controle da aplicação, sem depender de um provedor de auth
+externo. Arquivos do prontuário (radiografias, documentos) também
+ficam em disco local (`STORAGE_LOCAL_PATH`), servidos por um endpoint
+autenticado do próprio NestJS — não há bucket externo.
 
 `JwtAuthGuard` é aplicado globalmente (`APP_GUARD`) — toda rota exige
 token válido por padrão; endpoints públicos usam `@Public()`.
@@ -97,9 +97,8 @@ existentes (`users.clinic_id`, `appointments.room_id`).
 
 A migration cria explicitamente a extensão `uuid-ossp`
 (`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`) antes de qualquer
-tabela — no Supabase ela já vem habilitada por padrão, mas isso
-garante que a migration funciona em qualquer Postgres novo, sem
-depender disso.
+tabela — necessário em qualquer instalação nova de Postgres, já que
+não estamos mais em um provedor gerenciado que a habilita por padrão.
 
 Para gerar a próxima migration (depois de implementar os módulos
 stub, na ordem sugerida acima):

@@ -2,9 +2,9 @@ import { registerAs } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 /**
- * Configuração central de acesso ao PostgreSQL (hospedado no Supabase).
+ * Configuração central de acesso ao PostgreSQL (instância local).
  * Todo acesso a dados passa pelo NestJS — o front-end nunca fala
- * diretamente com o banco ou com o Supabase.
+ * diretamente com o banco.
  */
 export default registerAs(
   'database',
