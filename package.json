@@ -1,0 +1,23 @@
+{
+  "name": "dentalcare-saas",
+  "version": "1.0.0",
+  "description": "SaaS multi-tenant para clínicas odontológicas: agenda inteligente, prontuário eletrônico, plano de tratamento, financeiro integrado, controle de estoque, confirmação automática de consultas e relatórios gerenciais.",
+  "homepage": "https://github.com/MOrfeu669/dentalcare-saas#readme",
+  "bugs": {
+    "url": "https://github.com/MOrfeu669/dentalcare-saas/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MOrfeu669/dentalcare-saas.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

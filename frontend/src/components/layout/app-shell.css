@@ -25,6 +25,33 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow-y: auto;
+}
+
+.shell-nav-group {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.shell-nav-group:first-child {
+  margin-top: 0;
+}
+
+.shell-nav-group-label {
+  padding: 8px 12px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  opacity: 0.75;
+}
+
+.shell-nav-link--child {
+  padding-left: 22px;
+  font-size: 13.5px;
 }
 
 .shell-nav-link {

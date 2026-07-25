@@ -72,19 +72,56 @@ concluir um item do plano de tratamento, o evento
 `treatment-plan-item.completed` também deve ser escutado pelo
 `InventoryModule` para dar baixa automática.
 
+## Frontend (SPA)
+
+Decisões de navegação definidas para o front-end:
+
+- **Sidebar fixa, dois níveis, sub-itens sempre visíveis** — nada de
+  acordeão escondendo funcionalidade atrás de um clique extra. O mapa
+  completo está em `AppShell.tsx` (`NAV_ITEMS`): Dashboard, Agenda,
+  Pacientes (Lista/Cadastro), Atendimento (Prontuário/Odontograma/Plano
+  de tratamento), Financeiro (Caixa/Contas a receber/Contas a pagar),
+  Estoque, Relatórios, Configurações.
+- **Drawer em vez de navegação completa** quando a ação é rápida e a
+  pessoa não deveria perder onde estava — ex.: cadastrar paciente sem
+  sair da lista. Componente genérico em `components/common/Drawer.tsx`,
+  usado como referência em `pages/Patients/PatientsPage.tsx` (Lista +
+  Drawer de Cadastro na mesma tela, aberto via `?novo=1` — assim
+  sobrevive a um refresh e o link do menu "Pacientes → Cadastro" pode
+  apontar direto pra essa URL).
+- **Evitar perda de posição**: o `<main>` do `AppShell` usa
+  `key={location.pathname}` pra remontar só quando a *rota* muda, não
+  quando um Drawer abre/fecha via query param — o Drawer é uma camada
+  por cima, a tela de trás não perde filtro/scroll.
+- **Dashboard**: componentes ainda não definidos pelo usuário — o que
+  existe hoje (`DashboardPage.tsx`) é só um placeholder com KPIs
+  mockados pra não deixar a rota `/` vazia; vai ser refeito quando
+  a lista de indicadores for definida.
+
+Páginas reais (consomem a API de verdade): Login, Dashboard (mock),
+Pacientes. As demais (Agenda, Atendimento/\*, Financeiro/\*, Estoque,
+Relatórios, Configurações) são `PlaceholderPage` — a rota e a proteção
+por role já existem, falta só trocar pelo componente real.
+
 ## O que falta (por módulo)
 
 Cada stub em `backend/src/modules/*/*.module.ts` tem comentários
 `// TODO` descrevendo exatamente as entidades e regras a implementar,
 na ordem sugerida de dependência:
 
-1. Dentists (perfil profissional) e Rooms (CRUD simples)
+1. ~~Dentists (perfil profissional) e Rooms (CRUD simples)~~ ✅ feito e testado.
 2. Procedures (catálogo) → Treatment Plans (services/controller)
 3. Medical Records (odontograma, anamnese, evolução, upload de arquivos)
 4. Inventory → Financial → Payments (nessa ordem, pela cadeia de eventos)
 5. Notifications (integrações externas: WhatsApp/SMS/e-mail)
 6. Dashboard e Reports (agregam os módulos acima — fazer por último)
 7. Settings e Audit (transversais, baixa prioridade funcional)
+
+Pendência aberta em Dentists: `getWorkingHoursForDay()` já existe no
+service mas ainda não é consultado pelo
+`AppointmentConflictCheckerService` — hoje a agenda bloqueia
+sobreposição de horário, mas ainda aceita agendar fora do expediente
+do profissional.
 
 ## Banco de dados
 

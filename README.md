@@ -40,10 +40,11 @@ docs/
 
 Cada módulo do backend segue o padrão Controller → Service → Repository
 → DTO → Entity → Interfaces/Validators, conforme especificado no
-projeto. Os módulos **Auth**, **Users**, **Clinics**, **Patients** e
-**Appointments** estão implementados por completo e servem de
-referência para os demais, que existem como *stubs* com `// TODO`
-explicando o que fazer em cada um.
+projeto. Os módulos **Auth**, **Users**, **Clinics**, **Patients**,
+**Appointments** (+ Rooms) e **Dentists** estão implementados por
+completo, testados de ponta a ponta (API real + Postgres real), e
+servem de referência para os demais, que existem como *stubs* com
+`// TODO` explicando o que fazer em cada um.
 
 ## Pré-requisitos
 
@@ -78,9 +79,35 @@ npm run dev              # http://localhost:5173
 > à internet neste ambiente, o `npm install` precisa ser rodado na sua
 > máquina.
 
+## Troubleshooting
+
+**`Error: Cannot find module '.../dist/main'` ao rodar `npm run start:dev`**
+Já aconteceu aqui durante o desenvolvimento: `nest-cli.json` tem
+`deleteOutDir: true`, e se existir um `tsconfig.tsbuildinfo` de uma
+compilação anterior (`incremental: true`), o TypeScript acha que os
+arquivos em `dist/` ainda existem e pula a geração — só que
+`deleteOutDir` acabou de apagá-los. Resultado: `dist/` fica vazio e o
+Nest não acha `main.js`. Correção (já aplicada neste `tsconfig.json`):
+não usar `incremental` junto com `deleteOutDir`. Se acontecer de novo
+por algum outro motivo:
+```bash
+cd backend
+rm -f tsconfig.tsbuildinfo
+rm -rf dist
+npm run start:dev
+```
+
+**`error: autenticação do tipo senha falhou para o usuário "postgres"` (28P01)**
+Confirme que a senha no `.env` (`DB_PASSWORD`) é exatamente a mesma
+configurada no seu Postgres local — teste direto com
+`psql -U postgres -h localhost` antes de rodar qualquer comando do
+projeto. No Windows, confira também se o `.env` foi salvo em UTF-8 e
+sem aspas sobrando ao redor do valor.
+
 ## Próximos passos sugeridos
 
-1. ~~Gerar as primeiras migrations~~ ✅ e ~~seeds de dados~~ ✅ — feito, ver `docs/ARCHITECTURE.md`.
-2. Implementar `Dentists` e `Rooms` (pré-requisito direto da Agenda).
-3. Implementar `Procedures` → `Treatment Plans` (services/controller).
+1. ~~Migrations~~ ✅, ~~seeds~~ ✅, ~~Dentists + Rooms~~ ✅ — feito.
+2. Implementar `Procedures` → `Treatment Plans` (services/controller).
+3. Conectar `DentistsService.getWorkingHoursForDay()` ao
+   `AppointmentConflictCheckerService` (não sugerir horário fora do expediente).
 4. Seguir a ordem de dependência descrita em `docs/ARCHITECTURE.md`.
