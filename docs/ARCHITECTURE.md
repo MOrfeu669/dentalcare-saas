@@ -63,14 +63,64 @@ mesma sala. Isolado do `AppointmentsService` de propósito, para poder
 ser reutilizado depois em "sugestão de horários livres" sem duplicar a
 lógica de sobreposição de intervalos.
 
+## Financeiro integrado — cadeia de eventos (Treatment Plans → Financial → Payments)
+
+Esta é a demonstração mais completa do princípio "módulos se comunicam
+por eventos, não por import direto" descrito acima. Fluxo real,
+testado de ponta a ponta:
+
+1. `TreatmentPlansService.completeItem()` marca o item como concluído
+   e emite `treatment-plan-item.completed` com `{ clinicId, patientId, item }`.
+2. `FinancialService` (método `@OnEvent`, não um listener separado)
+   escuta esse evento e cria um `Receivable` automaticamente —
+   descrição e valor vêm do próprio item, vencimento padrão de 30 dias.
+   **`TreatmentPlansModule` não importa `FinancialModule` nem sabe que
+   ele existe.**
+3. `PaymentsService.registerPayment()` chama
+   `FinancialService.applyPayment()` (esse sim, injeção direta —
+   Payments *precisa* confirmar que o valor bate antes de gravar o
+   pagamento, então é síncrono de propósito). O `Receivable` vai de
+   `pending` → `partially_paid` → `paid` conforme os pagamentos
+   chegam; pagar mais do que o saldo devedor é rejeitado.
+4. `PaymentsService` emite `payment.received` — ninguém escuta ainda,
+   é o gancho pra uma futura tela de "recibo automático" ou integração
+   com emissão de nota fiscal.
+
 ## Consumo automático de estoque por procedimento
 
-Ainda não implementado (módulo `inventory` é stub), mas a ligação já
-está desenhada: `procedures/entities/procedure-material.entity.ts`
-(TODO) associa cada procedimento aos materiais/quantidades padrão. Ao
-concluir um item do plano de tratamento, o evento
-`treatment-plan-item.completed` também deve ser escutado pelo
-`InventoryModule` para dar baixa automática.
+Ainda não fechado — falta a "receita" de consumo:
+`procedures/entities/procedure-material.entity.ts` (TODO) associaria
+cada procedimento aos materiais/quantidades padrão. Com isso pronto,
+`InventoryModule` escutaria o mesmo `treatment-plan-item.completed`
+que o Financial já escuta, e chamaria
+`StockMovementsService.register()` para dar baixa automática — a
+infraestrutura de estoque (`Material`, `StockMovement`, atualização
+atômica de saldo em transação) já está pronta, só falta essa ponte.
+
+## Prontuário eletrônico (Medical Records)
+
+Quatro sub-recursos, cada um com seu próprio service/controller — sem
+um único "God controller":
+
+- **Anamnese** (`AnamnesisRecord`): registro único por paciente,
+  `PUT` faz upsert (cria se não existir, mescla campos se já existir).
+- **Evolução** (`ClinicalNote`): só `POST` + `GET` — propositalmente
+  sem `update`/`delete` no service, é histórico clínico.
+  `dentistId` sempre vem do token (`@CurrentUser()`), nunca do body.
+- **Odontograma** (`Odontogram`): um registro por paciente, `teeth`
+  é um jsonb indexado por número do dente (notação FDI);
+  `PUT .../teeth/:toothNumber` atualiza um dente por vez.
+- **Arquivos clínicos** (`ClinicalFile`): upload via `Multer`
+  (`diskStorage`, nome gerado no servidor — nunca o nome original do
+  arquivo, evita path traversal), salvo em `STORAGE_LOCAL_PATH`
+  (`backend/uploads/`, versionado vazio via `.gitkeep`). Download só
+  por endpoint autenticado (`GET .../files/:id/download`), nunca uma
+  pasta estática pública — são documentos clínicos sensíveis.
+
+`MedicalRecordsService.getFullHistory()` agrega os quatro acima **+**
+os planos de tratamento do paciente (via `TreatmentPlansService`) numa
+chamada só — `GET /medical-records/patient/:patientId/summary` — pra
+alimentar a tela de Prontuário sem o front precisar fazer 5 requests.
 
 ## Frontend (SPA)
 
@@ -110,12 +160,26 @@ Cada stub em `backend/src/modules/*/*.module.ts` tem comentários
 na ordem sugerida de dependência:
 
 1. ~~Dentists (perfil profissional) e Rooms (CRUD simples)~~ ✅ feito e testado.
-2. Procedures (catálogo) → Treatment Plans (services/controller)
-3. Medical Records (odontograma, anamnese, evolução, upload de arquivos)
-4. Inventory → Financial → Payments (nessa ordem, pela cadeia de eventos)
+2. ~~Procedures (catálogo) → Treatment Plans (services/controller)~~ ✅ feito e testado.
+3. ~~Medical Records (anamnese, evolução, odontograma, upload de arquivos)~~ ✅ feito e testado.
+4. ~~Inventory → Financial → Payments~~ ✅ feito e testado — inclusive a cadeia
+   completa: concluir item de plano → nasce conta a receber sozinha →
+   pagamento parcial → pagamento total → status `paid`.
 5. Notifications (integrações externas: WhatsApp/SMS/e-mail)
 6. Dashboard e Reports (agregam os módulos acima — fazer por último)
 7. Settings e Audit (transversais, baixa prioridade funcional)
+
+Pendências abertas:
+- `TreatmentPlansService.completeItem` já emite `treatment-plan-item.completed`
+  e o `FinancialModule` já escuta — mas o `InventoryModule` ainda não
+  (falta a "receita" `ProcedureMaterial` ligando procedimento a
+  materiais consumidos, requisito "consumo automático por procedimento").
+- Ao criar uma consulta vinculada a um item do plano (`Appointment.treatmentPlanId`),
+  ninguém ainda marca o item como `SCHEDULED` automaticamente.
+- `getWorkingHoursForDay()` (Dentists) ainda não é consultado pelo
+  `AppointmentConflictCheckerService`.
+- `inventory.low-stock` é emitido a cada movimentação que cruza o
+  mínimo, mas ninguém escuta ainda (Notifications é stub).
 
 Pendência aberta em Dentists: `getWorkingHoursForDay()` já existe no
 service mas ainda não é consultado pelo

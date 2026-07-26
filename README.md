@@ -41,10 +41,11 @@ docs/
 Cada módulo do backend segue o padrão Controller → Service → Repository
 → DTO → Entity → Interfaces/Validators, conforme especificado no
 projeto. Os módulos **Auth**, **Users**, **Clinics**, **Patients**,
-**Appointments** (+ Rooms) e **Dentists** estão implementados por
-completo, testados de ponta a ponta (API real + Postgres real), e
-servem de referência para os demais, que existem como *stubs* com
-`// TODO` explicando o que fazer em cada um.
+**Appointments** (+ Rooms), **Dentists**, **Procedures** e
+**Treatment Plans** estão implementados por completo, testados de
+ponta a ponta (API real + Postgres real), e servem de referência para
+os demais, que existem como *stubs* com `// TODO` explicando o que
+fazer em cada um.
 
 ## Pré-requisitos
 
@@ -106,8 +107,10 @@ sem aspas sobrando ao redor do valor.
 
 ## Próximos passos sugeridos
 
-1. ~~Migrations~~ ✅, ~~seeds~~ ✅, ~~Dentists + Rooms~~ ✅ — feito.
-2. Implementar `Procedures` → `Treatment Plans` (services/controller).
-3. Conectar `DentistsService.getWorkingHoursForDay()` ao
+1. ~~Migrations~~ ✅, ~~seeds~~ ✅, ~~Dentists + Rooms~~ ✅, ~~Procedures + Treatment Plans~~ ✅ — feito.
+2. Implementar `Medical Records` (odontograma, anamnese, evolução, upload de arquivos).
+3. Implementar `Inventory` → `Financial` → `Payments`, nessa ordem — Financial
+   já tem um evento esperando (`treatment-plan-item.completed`).
+4. Conectar `DentistsService.getWorkingHoursForDay()` ao
    `AppointmentConflictCheckerService` (não sugerir horário fora do expediente).
-4. Seguir a ordem de dependência descrita em `docs/ARCHITECTURE.md`.
+5. Seguir a ordem de dependência descrita em `docs/ARCHITECTURE.md`.

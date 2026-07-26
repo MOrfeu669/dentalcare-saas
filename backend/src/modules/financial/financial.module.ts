@@ -1,15 +1,16 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Receivable } from './entities/receivable.entity';
+import { Payable } from './entities/payable.entity';
+import { FinancialService } from './services/financial.service';
+import { ReceivablesController } from './controllers/receivables.controller';
+import { PayablesController } from './controllers/payables.controller';
+import { CashFlowController } from './controllers/cash-flow.controller';
 
-/**
- * Financeiro integrado: contas a receber/pagar, fluxo de caixa,
- * parcelamentos, inadimplência. Escuta eventos de outros módulos
- * (treatment-plan-item.completed, payment.received) em vez de ser
- * chamado diretamente por eles — mantém o acoplamento baixo.
- */
-@Module({})
+@Module({
+  imports: [TypeOrmModule.forFeature([Receivable, Payable])],
+  controllers: [ReceivablesController, PayablesController, CashFlowController],
+  providers: [FinancialService],
+  exports: [FinancialService], // PaymentsModule usa applyPayment() por aqui
+})
 export class FinancialModule {}
-
-// TODO: entities/receivable.entity.ts (patientId, treatmentPlanItemId, amount, dueDate, status)
-// TODO: entities/payable.entity.ts    (supplierId?, description, amount, dueDate, status)
-// TODO: @OnEvent('treatment-plan-item.completed') FinancialService.createReceivable(...)
-// TODO: FinancialService.getCashFlow(clinicId, from, to) -> usado pelo Dashboard/Reports

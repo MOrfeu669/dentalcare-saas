@@ -16,7 +16,8 @@ export enum TreatmentPlanItemStatus {
   COMPLETED = 'completed',
 }
 
-interface TreatmentPlanItem {
+export interface TreatmentPlanItem {
+  id: string;
   procedureId: string;
   toothNumber?: string; // referência ao odontograma (FDI notation), quando aplicável
   description: string;

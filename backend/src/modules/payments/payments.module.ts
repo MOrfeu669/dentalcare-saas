@@ -1,8 +1,14 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Payment } from './entities/payment.entity';
+import { PaymentsService } from './services/payments.service';
+import { PaymentsController } from './controllers/payments.controller';
+import { FinancialModule } from '../financial/financial.module';
 
-/** Registro de pagamentos: dinheiro, PIX, cartão, convênio, boleto. */
-@Module({})
+@Module({
+  imports: [TypeOrmModule.forFeature([Payment]), FinancialModule],
+  controllers: [PaymentsController],
+  providers: [PaymentsService],
+  exports: [PaymentsService],
+})
 export class PaymentsModule {}
-
-// TODO: entities/payment.entity.ts (receivableId, method enum, amount, paidAt, installments)
-// TODO: PaymentsService.registerPayment() -> emite 'payment.received' (Financial escuta e baixa a conta)
