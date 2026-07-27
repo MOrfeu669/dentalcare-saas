@@ -122,6 +122,48 @@ os planos de tratamento do paciente (via `TreatmentPlansService`) numa
 chamada só — `GET /medical-records/patient/:patientId/summary` — pra
 alimentar a tela de Prontuário sem o front precisar fazer 5 requests.
 
+## Notifications
+
+Fila própria (`NotificationLog`), não dependente de nenhuma API
+externa pra existir — importante porque este ambiente de
+desenvolvimento não tem (nem teria como testar) credenciais reais de
+WhatsApp Business API, SMS ou SMTP.
+
+**Provider plugável**: toda a lógica de "pra quem, quando, o quê"
+enviar está no `NotificationsService`; o *como* enviar de fato é
+isolado atrás da interface `NotificationSender`
+(`senders/notification-sender.interface.ts`). Hoje só existe
+`ConsoleNotificationSender` (loga a mensagem, sempre retorna sucesso).
+Pra produção: implementar `WhatsAppNotificationSender` /
+`SmtpNotificationSender` (usando as variáveis `WHATSAPP_API_*` /
+`SMTP_*` já reservadas no `.env.example`) e trocar uma linha em
+`notifications.module.ts` — nenhum outro arquivo muda.
+
+**Dois fluxos, testados de ponta a ponta:**
+
+1. **Lembrete de consulta** — `@OnEvent('appointment.created')` calcula
+   o horário de envio (24h antes; se a consulta já estiver a menos de
+   24h, agenda pra "agora") e só *enfileira* (`status: pending`).
+   Quem processa a fila é `processPendingReminders()`, rodando a cada
+   minuto via `@Cron` (também disparável sob demanda em
+   `POST /notifications/process-pending`, útil pra forçar o envio sem
+   esperar). Ao enviar com sucesso, marca
+   `Appointment.reminderSentAt` — por isso `AppointmentsService` ganhou
+   o método `markReminderSent()`.
+2. **Alerta de estoque baixo** — `@OnEvent('inventory.low-stock')`
+   dispara **na hora** (não entra na fila do cron: uma situação
+   operacional não deveria esperar), buscando os usuários `ADMIN` da
+   clínica via `UsersService` e enviando um e-mail pra cada um.
+
+**"Registrar quem confirmou/cancelou"**: `POST /notifications/:id/reply`
+simula o webhook que um provedor real mandaria quando o paciente
+responde à mensagem. Ao registrar `confirmed`, chama
+`AppointmentsService.confirm()`; ao registrar `cancelled`, chama
+`AppointmentsService.cancel()` — o `NotificationsModule` é quem
+depende do `AppointmentsModule` aqui (import direto, não evento),
+porque essa ação precisa de confirmação síncrona antes de responder a
+requisição.
+
 ## Frontend (SPA)
 
 Decisões de navegação definidas para o front-end:
@@ -165,7 +207,8 @@ na ordem sugerida de dependência:
 4. ~~Inventory → Financial → Payments~~ ✅ feito e testado — inclusive a cadeia
    completa: concluir item de plano → nasce conta a receber sozinha →
    pagamento parcial → pagamento total → status `paid`.
-5. Notifications (integrações externas: WhatsApp/SMS/e-mail)
+5. ~~Notifications (WhatsApp/SMS/e-mail)~~ ✅ feito e testado — envio real
+   fica atrás de um provider plugável (hoje só "log-only", ver seção abaixo).
 6. Dashboard e Reports (agregam os módulos acima — fazer por último)
 7. Settings e Audit (transversais, baixa prioridade funcional)
 
@@ -178,8 +221,10 @@ Pendências abertas:
   ninguém ainda marca o item como `SCHEDULED` automaticamente.
 - `getWorkingHoursForDay()` (Dentists) ainda não é consultado pelo
   `AppointmentConflictCheckerService`.
-- `inventory.low-stock` é emitido a cada movimentação que cruza o
-  mínimo, mas ninguém escuta ainda (Notifications é stub).
+- `NOTIFICATION_SENDER` está registrado como `ConsoleNotificationSender`
+  (só loga) — trocar por uma implementação real de WhatsApp Business
+  API / SMTP quando houver credenciais é a única mudança necessária
+  (ver seção "Notifications" abaixo).
 
 Pendência aberta em Dentists: `getWorkingHoursForDay()` já existe no
 service mas ainda não é consultado pelo

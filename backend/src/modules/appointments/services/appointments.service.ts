@@ -82,6 +82,12 @@ export class AppointmentsService {
     return this.findOne(clinicId, id);
   }
 
+  /** Chamado pelo NotificationsModule ao enviar o lembrete automático. */
+  async markReminderSent(clinicId: string, id: string): Promise<void> {
+    await this.findOne(clinicId, id);
+    await this.appointmentRepository.update(id, { reminderSentAt: new Date() });
+  }
+
   async findOne(clinicId: string, id: string): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({ where: { id, clinicId } });
     if (!appointment) throw new NotFoundException('Consulta não encontrada');

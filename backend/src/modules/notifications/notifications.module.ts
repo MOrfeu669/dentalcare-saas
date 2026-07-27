@@ -1,15 +1,28 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { NotificationLog } from './entities/notification-log.entity';
+import { NotificationsService } from './services/notifications.service';
+import { NotificationsController } from './controllers/notifications.controller';
+import { NOTIFICATION_SENDER } from './senders/notification-sender.interface';
+import { ConsoleNotificationSender } from './senders/console-notification.sender';
+import { AppointmentsModule } from '../appointments/appointments.module';
+import { PatientsModule } from '../patients/patients.module';
+import { UsersModule } from '../users/users.module';
 
-/**
- * Lembretes de consulta (WhatsApp/SMS/e-mail), confirmação automática
- * e alertas de estoque/financeiro. Reage a eventos emitidos por outros
- * módulos (appointment.created, low-stock.detected) via @OnEvent —
- * assim nenhum módulo de negócio precisa saber como notificar.
- */
-@Module({})
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([NotificationLog]),
+    AppointmentsModule,
+    PatientsModule,
+    UsersModule,
+  ],
+  controllers: [NotificationsController],
+  providers: [
+    NotificationsService,
+    // Troca de provider é só isso — nada mais no módulo muda quando um
+    // sender de WhatsApp/SMS/SMTP real existir.
+    { provide: NOTIFICATION_SENDER, useClass: ConsoleNotificationSender },
+  ],
+  exports: [NotificationsService],
+})
 export class NotificationsModule {}
-
-// TODO: entities/notification-log.entity.ts (channel, recipient, status SENT|DELIVERED|FAILED, appointmentId?)
-// TODO: @OnEvent('appointment.created') -> agenda envio do lembrete (ex.: 24h antes) via @nestjs/schedule
-// TODO: integrações: WhatsApp Business API, provedor de SMS, SMTP (ver .env.example)
-// TODO: registrar quem confirmou / não respondeu / cancelou (usado por Appointments.confirm)

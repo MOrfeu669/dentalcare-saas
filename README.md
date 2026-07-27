@@ -41,11 +41,12 @@ docs/
 Cada módulo do backend segue o padrão Controller → Service → Repository
 → DTO → Entity → Interfaces/Validators, conforme especificado no
 projeto. Os módulos **Auth**, **Users**, **Clinics**, **Patients**,
-**Appointments** (+ Rooms), **Dentists**, **Procedures** e
-**Treatment Plans** estão implementados por completo, testados de
-ponta a ponta (API real + Postgres real), e servem de referência para
-os demais, que existem como *stubs* com `// TODO` explicando o que
-fazer em cada um.
+**Appointments** (+ Rooms), **Dentists**, **Procedures**,
+**Treatment Plans**, **Medical Records**, **Inventory**, **Financial**,
+**Payments** e **Notifications** estão implementados por completo,
+testados de ponta a ponta (API real + Postgres real). Restam
+**Dashboard**, **Reports**, **Settings** e **Audit** como *stubs* com
+`// TODO`.
 
 ## Pré-requisitos
 
@@ -107,10 +108,14 @@ sem aspas sobrando ao redor do valor.
 
 ## Próximos passos sugeridos
 
-1. ~~Migrations~~ ✅, ~~seeds~~ ✅, ~~Dentists + Rooms~~ ✅, ~~Procedures + Treatment Plans~~ ✅ — feito.
-2. Implementar `Medical Records` (odontograma, anamnese, evolução, upload de arquivos).
-3. Implementar `Inventory` → `Financial` → `Payments`, nessa ordem — Financial
-   já tem um evento esperando (`treatment-plan-item.completed`).
+1. ~~Migrations~~ ✅, ~~seeds~~ ✅, ~~Dentists + Rooms~~ ✅,
+   ~~Procedures + Treatment Plans~~ ✅, ~~Medical Records~~ ✅,
+   ~~Inventory → Financial → Payments~~ ✅, ~~Notifications~~ ✅ — feito.
+2. `ProcedureMaterial` (receita de consumo) + `InventoryModule` escutando
+   `treatment-plan-item.completed` — fecha o "consumo automático por procedimento".
+3. Implementar um `NotificationSender` real (WhatsApp Business API ou
+   SMTP) quando houver credenciais — hoje só loga (`ConsoleNotificationSender`).
 4. Conectar `DentistsService.getWorkingHoursForDay()` ao
    `AppointmentConflictCheckerService` (não sugerir horário fora do expediente).
-5. Seguir a ordem de dependência descrita em `docs/ARCHITECTURE.md`.
+5. `Dashboard`/`Reports` — última etapa, já que agregam todos os módulos acima.
+6. Seguir a ordem de dependência descrita em `docs/ARCHITECTURE.md`.
