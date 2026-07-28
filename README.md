@@ -40,13 +40,13 @@ docs/
 
 Cada módulo do backend segue o padrão Controller → Service → Repository
 → DTO → Entity → Interfaces/Validators, conforme especificado no
-projeto. Os módulos **Auth**, **Users**, **Clinics**, **Patients**,
-**Appointments** (+ Rooms), **Dentists**, **Procedures**,
-**Treatment Plans**, **Medical Records**, **Inventory**, **Financial**,
-**Payments** e **Notifications** estão implementados por completo,
-testados de ponta a ponta (API real + Postgres real). Restam
-**Dashboard**, **Reports**, **Settings** e **Audit** como *stubs* com
-`// TODO`.
+projeto. **Todos os módulos de negócio do escopo original estão
+implementados e testados de ponta a ponta** (API real + Postgres
+real): Auth, Users, Clinics, Patients, Appointments (+ Rooms),
+Dentists, Procedures, Treatment Plans, Medical Records, Inventory,
+Financial, Payments, Notifications, Dashboard e Reports. Restam
+**Settings** e **Audit** — transversais, baixa prioridade funcional,
+ainda *stubs* com `// TODO`.
 
 ## Pré-requisitos
 
@@ -108,14 +108,18 @@ sem aspas sobrando ao redor do valor.
 
 ## Próximos passos sugeridos
 
-1. ~~Migrations~~ ✅, ~~seeds~~ ✅, ~~Dentists + Rooms~~ ✅,
-   ~~Procedures + Treatment Plans~~ ✅, ~~Medical Records~~ ✅,
-   ~~Inventory → Financial → Payments~~ ✅, ~~Notifications~~ ✅ — feito.
-2. `ProcedureMaterial` (receita de consumo) + `InventoryModule` escutando
+Todo o backend de negócio (Auth até Reports) está implementado e
+testado. O que resta:
+
+1. `ProcedureMaterial` (receita de consumo) + `InventoryModule` escutando
    `treatment-plan-item.completed` — fecha o "consumo automático por procedimento".
-3. Implementar um `NotificationSender` real (WhatsApp Business API ou
+2. Implementar um `NotificationSender` real (WhatsApp Business API ou
    SMTP) quando houver credenciais — hoje só loga (`ConsoleNotificationSender`).
-4. Conectar `DentistsService.getWorkingHoursForDay()` ao
+3. Exportação de Reports para PDF/Excel (`ReportsController` retorna
+   JSON hoje).
+4. `Settings` e `Audit` — módulos transversais, ainda stub.
+5. Conectar `DentistsService.getWorkingHoursForDay()` ao
    `AppointmentConflictCheckerService` (não sugerir horário fora do expediente).
-5. `Dashboard`/`Reports` — última etapa, já que agregam todos os módulos acima.
-6. Seguir a ordem de dependência descrita em `docs/ARCHITECTURE.md`.
+6. No frontend: trocar os `PlaceholderPage` restantes (Agenda,
+   Atendimento/\*, Financeiro/\*, Estoque, Relatórios) por telas reais
+   consumindo a API — o padrão está em `pages/Patients/PatientsPage.tsx`.

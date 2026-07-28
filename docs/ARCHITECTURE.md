@@ -122,6 +122,46 @@ os planos de tratamento do paciente (via `TreatmentPlansService`) numa
 chamada só — `GET /medical-records/patient/:patientId/summary` — pra
 alimentar a tela de Prontuário sem o front precisar fazer 5 requests.
 
+## Dashboard e Reports
+
+Nenhum dos dois tem entidade/repository próprio — são só camadas de
+agregação por cima dos services de domínio já existentes, na linha do
+que o resto da arquitetura já vinha fazendo.
+
+**Dashboard** (`GET /dashboard/summary`) — os 8 cards definidos pelo
+usuário, cada um mapeado para um método específico (a maioria novo,
+adicionado nos services de domínio nesta etapa):
+
+| Card | Fonte |
+|---|---|
+| Consultas de hoje | `AppointmentsService.getDaySchedule()` (já existia) |
+| Pacientes aguardando | `AppointmentsService.findWaitingNow()` — `CONFIRMED` e horário já chegou |
+| Próxima consulta | `AppointmentsService.findNext()` |
+| Confirmações pendentes | `AppointmentsService.findPendingConfirmations()` — `SCHEDULED` nas próximas 48h |
+| Avisos importantes | feed combinando estoque crítico + contas vencidas + notificação com falha de envio |
+| Estoque crítico | `MaterialsService.findLowStock()` (já existia) |
+| Recebimentos do dia | `PaymentsService.findByDateRange()` (novo) |
+| Procedimentos realizados hoje | `TreatmentPlansService.findItemsCompletedInRange()` (novo) |
+
+Pra "Procedimentos realizados hoje" funcionar, `TreatmentPlanItem`
+ganhou um campo `completedAt` (preenchido em `completeItem()`) — como
+ele mora dentro do jsonb `items`, o filtro por data é feito em memória
+depois de buscar os planos da clínica; aceitável no volume de uma
+clínica, mas é o primeiro candidato a virar tabela própria se o
+histórico crescer muito.
+
+**Reports** (`GET /reports/{financial,agenda,inventory,patients,procedures}`,
+`?from=&to=`, admin-only) — os 5 relatórios do escopo original.
+`revenueByProcedure` e `revenueByProfessional` (dentro de
+`/reports/procedures`) reaproveitam o mesmo `findItemsCompletedInRange`
+do Dashboard e resolvem nome de procedimento/dentista via
+`ProceduresService`/`UsersService` antes de devolver — sem isso o
+relatório seria só uma lista de UUIDs. Retorna JSON estruturado;
+exportação pra PDF/Excel é a única parte do escopo original de
+Reports que ainda não foi implementada (fica registrado como TODO no
+controller — a agregação de dados não precisa mudar nada pra isso,
+é só uma camada de serialização por cima).
+
 ## Notifications
 
 Fila própria (`NotificationLog`), não dependente de nenhuma API
@@ -209,8 +249,13 @@ na ordem sugerida de dependência:
    pagamento parcial → pagamento total → status `paid`.
 5. ~~Notifications (WhatsApp/SMS/e-mail)~~ ✅ feito e testado — envio real
    fica atrás de um provider plugável (hoje só "log-only", ver seção abaixo).
-6. Dashboard e Reports (agregam os módulos acima — fazer por último)
-7. Settings e Audit (transversais, baixa prioridade funcional)
+6. ~~Dashboard e Reports~~ ✅ feito e testado — todos os 8 cards do
+   Dashboard e os 5 relatórios (Financeiro, Agenda, Estoque, Pacientes,
+   Procedimentos) validados com dados reais.
+
+Todos os módulos de negócio do escopo original estão implementados.
+O que resta (**Settings**, **Audit**) é transversal e de baixa
+prioridade funcional — ver seção própria no final deste documento.
 
 Pendências abertas:
 - `TreatmentPlansService.completeItem` já emite `treatment-plan-item.completed`
@@ -223,8 +268,13 @@ Pendências abertas:
   `AppointmentConflictCheckerService`.
 - `NOTIFICATION_SENDER` está registrado como `ConsoleNotificationSender`
   (só loga) — trocar por uma implementação real de WhatsApp Business
-  API / SMTP quando houver credenciais é a única mudança necessária
-  (ver seção "Notifications" abaixo).
+  API / SMTP quando houver credenciais é a única mudança necessária.
+- `ReportsController` retorna JSON; exportação real para PDF/Excel
+  ainda não foi implementada (ver TODO no próprio controller).
+- Itens de plano de tratamento concluídos **antes** da entidade ganhar
+  o campo `completedAt` (ver seção Dashboard/Reports abaixo) não
+  aparecem em `findItemsCompletedInRange` — é uma lacuna de dado
+  histórico do ambiente de desenvolvimento, não do código.
 
 Pendência aberta em Dentists: `getWorkingHoursForDay()` já existe no
 service mas ainda não é consultado pelo

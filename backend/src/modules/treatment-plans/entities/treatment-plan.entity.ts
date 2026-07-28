@@ -24,6 +24,7 @@ export interface TreatmentPlanItem {
   estimatedValue: number;
   status: TreatmentPlanItemStatus;
   appointmentId?: string;
+  completedAt?: string; // ISO date — preenchido em completeItem(), usado pelo Dashboard/Reports
 }
 
 /**

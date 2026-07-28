@@ -1,14 +1,23 @@
 import { Module } from '@nestjs/common';
+import { DashboardService } from './services/dashboard.service';
+import { DashboardController } from './controllers/dashboard.controller';
+import { AppointmentsModule } from '../appointments/appointments.module';
+import { InventoryModule } from '../inventory/inventory.module';
+import { FinancialModule } from '../financial/financial.module';
+import { PaymentsModule } from '../payments/payments.module';
+import { TreatmentPlansModule } from '../treatment-plans/treatment-plans.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
-/**
- * Indicadores em tempo real (consultas do dia, faturamento, lucro,
- * despesas, estoque baixo, procedimentos realizados, pacientes
- * cadastrados). Não tem entidades próprias — apenas agrega dados
- * dos outros módulos via seus services (nunca acessa outro repository
- * diretamente, respeitando a comunicação por camada de serviço).
- */
-@Module({})
+@Module({
+  imports: [
+    AppointmentsModule,
+    InventoryModule,
+    FinancialModule,
+    PaymentsModule,
+    TreatmentPlansModule,
+    NotificationsModule,
+  ],
+  controllers: [DashboardController],
+  providers: [DashboardService],
+})
 export class DashboardModule {}
-
-// TODO: DashboardService.getSummary(clinicId) -> combina
-//       AppointmentsService + FinancialService + InventoryService + PatientsService

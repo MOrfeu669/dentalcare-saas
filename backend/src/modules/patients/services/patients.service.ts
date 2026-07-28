@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { Between, ILike, Repository } from 'typeorm';
 import { Patient } from '../entities/patient.entity';
 import { CreatePatientDto } from '../dto/create-patient.dto';
 import { UpdatePatientDto } from '../dto/update-patient.dto';
@@ -75,5 +75,17 @@ export class PatientsService {
       whatsapp: patient.whatsapp,
       insuranceProvider: patient.insuranceProvider,
     };
+  }
+
+  /** Usado pelo relatório de Pacientes ("novos cadastros no período"). */
+  findCreatedInRange(clinicId: string, from: Date, to: Date): Promise<Patient[]> {
+    return this.patientRepository.find({
+      where: { clinicId, createdAt: Between(from, to) },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  countActive(clinicId: string): Promise<number> {
+    return this.patientRepository.count({ where: { clinicId, active: true } });
   }
 }

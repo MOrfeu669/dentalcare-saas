@@ -151,4 +151,18 @@ export class FinancialService {
       balance: totalReceived - totalPaidOut,
     };
   }
+
+  /** Contas a receber vencidas e ainda não quitadas — usado no Dashboard ("Avisos importantes"). */
+  findOverdueReceivables(clinicId: string): Promise<Receivable[]> {
+    const today = new Date().toISOString().slice(0, 10);
+    return this.receivableRepository
+      .createQueryBuilder('receivable')
+      .where('receivable.clinic_id = :clinicId', { clinicId })
+      .andWhere('receivable.due_date < :today', { today })
+      .andWhere('receivable.status IN (:...statuses)', {
+        statuses: [ReceivableStatus.PENDING, ReceivableStatus.PARTIALLY_PAID],
+      })
+      .orderBy('receivable.due_date', 'ASC')
+      .getMany();
+  }
 }

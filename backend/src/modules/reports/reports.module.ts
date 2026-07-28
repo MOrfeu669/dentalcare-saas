@@ -1,10 +1,27 @@
 import { Module } from '@nestjs/common';
+import { ReportsService } from './services/reports.service';
+import { ReportsController } from './controllers/reports.controller';
+import { AppointmentsModule } from '../appointments/appointments.module';
+import { PatientsModule } from '../patients/patients.module';
+import { InventoryModule } from '../inventory/inventory.module';
+import { FinancialModule } from '../financial/financial.module';
+import { PaymentsModule } from '../payments/payments.module';
+import { TreatmentPlansModule } from '../treatment-plans/treatment-plans.module';
+import { UsersModule } from '../users/users.module';
+import { ProceduresModule } from '../procedures/procedures.module';
 
-/** Relatório gerencial: financeiro, agenda, estoque, pacientes, procedimentos — com dados cruzados. */
-@Module({})
+@Module({
+  imports: [
+    AppointmentsModule,
+    PatientsModule,
+    InventoryModule,
+    FinancialModule,
+    PaymentsModule,
+    TreatmentPlansModule,
+    UsersModule,
+    ProceduresModule,
+  ],
+  controllers: [ReportsController],
+  providers: [ReportsService],
+})
 export class ReportsModule {}
-
-// TODO: ReportsService.revenueByProfessional(clinicId, from, to)
-// TODO: ReportsService.revenueByProcedure(clinicId, from, to)
-// TODO: exportação para PDF (skill de PDF) e Excel (biblioteca exceljs) por endpoint,
-//       ex.: GET /reports/financial?format=pdf|xlsx

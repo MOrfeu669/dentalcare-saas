@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, In, MoreThan, Not, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Appointment } from '../entities/appointment.entity';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
@@ -88,6 +88,63 @@ export class AppointmentsService {
     await this.appointmentRepository.update(id, { reminderSentAt: new Date() });
   }
 
+  /** Marca a consulta como realizada — recepção/dentista finaliza o atendimento. */
+  async complete(clinicId: string, id: string): Promise<Appointment> {
+    await this.findOne(clinicId, id);
+    await this.appointmentRepository.update(id, { status: AppointmentStatus.COMPLETED });
+    return this.findOne(clinicId, id);
+  }
+
+  /** "Próxima consulta" do Dashboard — a primeira que ainda vai acontecer. */
+  findNext(clinicId: string): Promise<Appointment | null> {
+    return this.appointmentRepository.findOne({
+      where: {
+        clinicId,
+        startTime: MoreThan(new Date()),
+        status: Not(In([AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW])),
+      },
+      relations: ['room'],
+      order: { startTime: 'ASC' },
+    });
+  }
+
+  /**
+   * "Pacientes aguardando" — confirmaram presença e o horário já
+   * chegou, mas o atendimento ainda não começou nem foi concluído.
+   */
+  findWaitingNow(clinicId: string): Promise<Appointment[]> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    return this.appointmentRepository.find({
+      where: {
+        clinicId,
+        status: AppointmentStatus.CONFIRMED,
+        startTime: Between(startOfDay, new Date()),
+      },
+      order: { startTime: 'ASC' },
+    });
+  }
+
+  /**
+   * "Confirmações pendentes" — lembrete já foi (ou será) enviado, mas o
+   * paciente ainda não respondeu. Janela de 48h pra não misturar com
+   * consultas muito distantes no futuro.
+   */
+  findPendingConfirmations(clinicId: string): Promise<Appointment[]> {
+    const in48h = new Date();
+    in48h.setHours(in48h.getHours() + 48);
+
+    return this.appointmentRepository.find({
+      where: {
+        clinicId,
+        status: AppointmentStatus.SCHEDULED,
+        startTime: Between(new Date(), in48h),
+      },
+      order: { startTime: 'ASC' },
+    });
+  }
+
   async findOne(clinicId: string, id: string): Promise<Appointment> {
     const appointment = await this.appointmentRepository.findOne({ where: { id, clinicId } });
     if (!appointment) throw new NotFoundException('Consulta não encontrada');
@@ -96,5 +153,13 @@ export class AppointmentsService {
 
   getDaySchedule(clinicId: string, date: Date) {
     return this.conflictChecker.findDaySchedule(clinicId, date);
+  }
+
+  /** Usado pelo relatório de Agenda (contagem por status, por profissional). */
+  findInRange(clinicId: string, from: Date, to: Date): Promise<Appointment[]> {
+    return this.appointmentRepository.find({
+      where: { clinicId, startTime: Between(from, to) },
+      order: { startTime: 'ASC' },
+    });
   }
 }

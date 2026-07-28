@@ -1,6 +1,5 @@
 import { registerAs } from '@nestjs/config';
 
-console.log(process.env.JWT_SECRET);
 export default registerAs('app', () => ({
   env: process.env.NODE_ENV ?? 'development',
   port: parseInt(process.env.PORT ?? '3000', 10),

@@ -54,4 +54,10 @@ export class AppointmentsController {
   confirm(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.appointmentsService.confirm(user.clinicId, id);
   }
+
+  @Patch(':id/complete')
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DENTIST)
+  complete(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.appointmentsService.complete(user.clinicId, id);
+  }
 }

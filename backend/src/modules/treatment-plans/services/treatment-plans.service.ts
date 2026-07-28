@@ -121,6 +121,7 @@ export class TreatmentPlansService {
     if (!item) throw new NotFoundException('Item do plano não encontrado');
 
     item.status = TreatmentPlanItemStatus.COMPLETED;
+    item.completedAt = new Date().toISOString();
 
     const allCompleted = plan.items.every((i) => i.status === TreatmentPlanItemStatus.COMPLETED);
     const newStatus = allCompleted ? TreatmentPlanStatus.COMPLETED : plan.status;
@@ -138,5 +139,32 @@ export class TreatmentPlansService {
     });
 
     return this.findOne(clinicId, id);
+  }
+
+  /**
+   * Varre os planos da clínica e retorna, "achatados", os itens
+   * concluídos dentro do período — usado pelo Dashboard ("Procedimentos
+   * realizados hoje") e pelos Reports (receita por procedimento/profissional).
+   * `completedAt` mora dentro do jsonb `items`, então o filtro é feito
+   * em memória; para o volume de uma clínica isso é desprezível — se
+   * crescer muito, dá pra migrar para uma tabela própria de histórico.
+   */
+  async findItemsCompletedInRange(clinicId: string, from: Date, to: Date) {
+    const plans = await this.treatmentPlanRepository.find({ where: { clinicId } });
+
+    return plans.flatMap((plan) =>
+      plan.items
+        .filter((item) => {
+          if (item.status !== TreatmentPlanItemStatus.COMPLETED || !item.completedAt) return false;
+          const completedAt = new Date(item.completedAt);
+          return completedAt >= from && completedAt <= to;
+        })
+        .map((item) => ({
+          ...item,
+          treatmentPlanId: plan.id,
+          patientId: plan.patientId,
+          dentistId: plan.dentistId,
+        })),
+    );
   }
 }

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Payment } from '../entities/payment.entity';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
@@ -42,6 +42,14 @@ export class PaymentsService {
   findByReceivable(clinicId: string, receivableId: string): Promise<Payment[]> {
     return this.paymentRepository.find({
       where: { clinicId, receivableId },
+      order: { paidAt: 'DESC' },
+    });
+  }
+
+  /** Usado pelo Dashboard ("Recebimentos do dia") e pelos Reports financeiros. */
+  findByDateRange(clinicId: string, from: Date, to: Date): Promise<Payment[]> {
+    return this.paymentRepository.find({
+      where: { clinicId, paidAt: Between(from, to) },
       order: { paidAt: 'DESC' },
     });
   }
