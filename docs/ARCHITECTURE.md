@@ -35,6 +35,34 @@ externo. Arquivos do prontuário (radiografias, documentos) também
 ficam em disco local (`STORAGE_LOCAL_PATH`), servidos por um endpoint
 autenticado do próprio NestJS — não há bucket externo.
 
+### Cadastro (onboarding)
+
+Três fluxos, todos em `AuthModule` (fazem sentido junto do login
+porque os dois cadastros de conta já devolvem token — login
+automático ao final):
+
+- **`POST /auth/register/clinic`** (público) — onboarding de uma
+  clínica nova no SaaS. Cria a `Clinic` e o primeiro `User` (sempre
+  `role: admin`) na mesma operação, via `ClinicsService.create()` +
+  `UsersService.create()`. É o único jeito de um usuário `admin`
+  nascer — não existe endpoint público pra criar admin direto.
+- **`POST /auth/register/staff`** (público) — dentista ou
+  recepcionista se vinculando a uma clínica **já existente**,
+  identificada pelo CNPJ (`ClinicsService.findByCnpj()`). Aceita só
+  `role: dentist | receptionist`; CRO é obrigatório quando `dentist`.
+- Criar um `admin` adicional para uma clínica que já existe continua
+  sendo feito pelo fluxo antigo, autenticado:
+  `POST /users` (só admin logado pode chamar).
+
+**Nota de segurança deliberada**: `register/staff` confia no CNPJ como
+prova de vínculo com a clínica — qualquer pessoa que souber o CNPJ
+(informação pouco sigilosa) consegue criar uma conta de
+dentista/funcionário nela. Aceitável para MVP/desenvolvimento; antes
+de produção o certo é trocar por um fluxo de convite (admin gera um
+link/código de uso único) ou exigir aprovação do admin antes da conta
+ficar ativa. Deixado assim de propósito, documentado aqui para não
+ser confundido com descuido.
+
 `JwtAuthGuard` é aplicado globalmente (`APP_GUARD`) — toda rota exige
 token válido por padrão; endpoints públicos usam `@Public()`.
 `RolesGuard`, também global, valida `@Roles(...)` por perfil
@@ -225,15 +253,25 @@ Decisões de navegação definidas para o front-end:
   `key={location.pathname}` pra remontar só quando a *rota* muda, não
   quando um Drawer abre/fecha via query param — o Drawer é uma camada
   por cima, a tela de trás não perde filtro/scroll.
-- **Dashboard**: componentes ainda não definidos pelo usuário — o que
-  existe hoje (`DashboardPage.tsx`) é só um placeholder com KPIs
-  mockados pra não deixar a rota `/` vazia; vai ser refeito quando
-  a lista de indicadores for definida.
+- **Login/Cadastro**: `LoginPage.tsx` tem duas abas — "Entrar" (form
+  genérico de e-mail/senha, igual pra qualquer perfil) e "Criar conta",
+  que por sua vez tem 3 chips (Clínica / Dentista / Funcionário) com
+  formulários diferentes, cada um batendo no endpoint certo
+  (`/auth/register/clinic` ou `/auth/register/staff`) — ver
+  `docs/ARCHITECTURE.md` → Autenticação → Cadastro (onboarding) pra
+  como isso mapeia no banco. Os três fluxos já logam automaticamente
+  ao final.
+- **Dashboard**: o backend (`GET /dashboard/summary`) já está
+  implementado com os 8 cards definidos pelo usuário — mas
+  `DashboardPage.tsx` no front **ainda mostra dados mockados**, ainda
+  não foi trocado pra consumir o endpoint real. Esse é o próximo passo
+  óbvio do frontend.
 
-Páginas reais (consomem a API de verdade): Login, Dashboard (mock),
-Pacientes. As demais (Agenda, Atendimento/\*, Financeiro/\*, Estoque,
-Relatórios, Configurações) são `PlaceholderPage` — a rota e a proteção
-por role já existem, falta só trocar pelo componente real.
+Páginas reais (consomem a API de verdade): Login/Cadastro, Pacientes.
+Dashboard consome dados mockados (backend pronto, front pendente). As
+demais (Agenda, Atendimento/\*, Financeiro/\*, Estoque, Relatórios,
+Configurações) são `PlaceholderPage` — a rota e a proteção por role já
+existem, falta só trocar pelo componente real.
 
 ## O que falta (por módulo)
 

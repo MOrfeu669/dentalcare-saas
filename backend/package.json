@@ -1,15 +1,8 @@
 {
   "name": "dentalcare-backend",
   "version": "0.1.0",
-  "private": true,
   "description": "Backend do sistema de gestão para clínicas odontológicas (SaaS multi-tenant)",
-  "license": "ISC",
-  "author": "",
-  "type": "commonjs",
-  "main": "index.js",
-  "directories": {
-    "test": "test"
-  },
+  "private": true,
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\"",

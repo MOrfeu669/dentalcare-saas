@@ -26,7 +26,7 @@ export class PayablesController {
   }
 
   @Patch(':id/pay')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   markPaid(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.financialService.markPayablePaid(user.clinicId, id);
   }

@@ -1,14 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Clinic } from './entities/clinic.entity';
+import { ClinicsService } from './services/clinics.service';
+import { ClinicsController } from './controllers/clinics.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Clinic])],
-  exports: [TypeOrmModule],
+  controllers: [ClinicsController],
+  providers: [ClinicsService],
+  exports: [ClinicsService], // AuthModule usa create()/findByCnpj() no fluxo de cadastro
 })
 export class ClinicsModule {}
-
-// TODO próximos passos deste módulo:
-// - ClinicsService: create() (usado no onboarding de uma nova clínica no SaaS)
-// - ClinicsController: GET/PATCH /clinics/me (configurações gerais, horário de funcionamento)
-// - Validar CNPJ único na criação

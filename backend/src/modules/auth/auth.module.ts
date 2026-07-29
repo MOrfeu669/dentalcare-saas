@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
+import { ClinicsModule } from '../clinics/clinics.module';
 import { AuthService } from './services/auth.service';
 import { AuthController } from './controllers/auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -10,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 @Module({
   imports: [
     UsersModule, // Auth NUNCA acessa o repositório de User diretamente — só via UsersService
+    ClinicsModule, // idem para Clinic — só via ClinicsService
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
