@@ -74,7 +74,7 @@ export function AppRoutes() {
         <Route
           path="/financeiro/caixa"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
               <PlaceholderPage title="Caixa" description="Fluxo de caixa do dia/período." />
             </ProtectedRoute>
           }
@@ -82,7 +82,7 @@ export function AppRoutes() {
         <Route
           path="/financeiro/contas-a-receber"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
               <PlaceholderPage
                 title="Contas a receber"
                 description="Recebíveis por paciente, parcelamentos e inadimplência."
@@ -93,7 +93,7 @@ export function AppRoutes() {
         <Route
           path="/financeiro/contas-a-pagar"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
               <PlaceholderPage
                 title="Contas a pagar"
                 description="Despesas e pagamentos a fornecedores."

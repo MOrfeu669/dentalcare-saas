@@ -14,19 +14,19 @@ export class PayablesController {
   constructor(private readonly financialService: FinancialService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePayableDto) {
     return this.financialService.createPayable(user.clinicId, dto);
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   findAll(@CurrentUser() user: AuthenticatedUser, @Query('status') status?: PayableStatus) {
     return this.financialService.findPayables(user.clinicId, status);
   }
 
   @Patch(':id/pay')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   markPaid(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.financialService.markPayablePaid(user.clinicId, id);
   }

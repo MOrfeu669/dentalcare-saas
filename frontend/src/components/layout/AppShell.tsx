@@ -42,7 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: 'Financeiro',
-    roles: [UserRole.ADMIN],
+    roles: [UserRole.ADMIN, UserRole.RECEPTIONIST],
     children: [
       { to: '/financeiro/caixa', label: 'Caixa' },
       { to: '/financeiro/contas-a-receber', label: 'Contas a receber' },

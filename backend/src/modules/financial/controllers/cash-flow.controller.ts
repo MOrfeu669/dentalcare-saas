@@ -12,7 +12,7 @@ export class CashFlowController {
   constructor(private readonly financialService: FinancialService) {}
 
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   getCashFlow(
     @CurrentUser() user: AuthenticatedUser,
     @Query('from') from: string,
