@@ -2,9 +2,17 @@ import { Routes, Route } from 'react-router-dom';
 import { LoginPage } from '../pages/Login/LoginPage';
 import { DashboardPage } from '../pages/Dashboard/DashboardPage';
 import { PatientsPage } from '../pages/Patients/PatientsPage';
+import { AgendaPage } from '../pages/Agenda/AgendaPage';
+import { MedicalRecordsPage } from '../pages/MedicalRecords/MedicalRecordsPage';
+import { TreatmentPlansPage } from '../pages/TreatmentPlans/TreatmentPlansPage';
+import { InventoryPage } from '../pages/Inventory/InventoryPage';
+import { ReportsPage } from '../pages/Reports/ReportsPage';
+import { CashFlowPage } from '../pages/Financial/CashFlowPage';
+import { ReceivablesPage } from '../pages/Financial/ReceivablesPage';
+import { PayablesPage } from '../pages/Financial/PayablesPage';
+import { SettingsPage } from '../pages/Settings/SettingsPage';
 import { AppShell } from '../components/layout/AppShell';
 import { ProtectedRoute } from '../components/common/ProtectedRoute';
-import { PlaceholderPage } from '../components/common/PlaceholderPage';
 import { UserRole } from '../types';
 
 export function AppRoutes() {
@@ -21,15 +29,7 @@ export function AppRoutes() {
       >
         <Route path="/" element={<DashboardPage />} />
 
-        <Route
-          path="/agenda"
-          element={
-            <PlaceholderPage
-              title="Agenda"
-              description="Visualização por profissional/sala com checagem automática de conflitos (backend já implementado em AppointmentsModule)."
-            />
-          }
-        />
+        <Route path="/agenda" element={<AgendaPage />} />
 
         {/* Pacientes: Lista e Cadastro vivem na mesma tela — o "Cadastro"
             do menu abre o Drawer via ?novo=1 em vez de trocar de rota. */}
@@ -40,10 +40,7 @@ export function AppRoutes() {
           path="/atendimento/prontuario"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DENTIST]}>
-              <PlaceholderPage
-                title="Prontuário"
-                description="Histórico clínico, anamnese, evolução e documentos do paciente (módulo MedicalRecords, ainda stub no backend)."
-              />
+              <MedicalRecordsPage />
             </ProtectedRoute>
           }
         />
@@ -51,10 +48,7 @@ export function AppRoutes() {
           path="/atendimento/odontograma"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DENTIST]}>
-              <PlaceholderPage
-                title="Odontograma"
-                description="Mapa dental interativo — condição/procedimento por dente."
-              />
+              <MedicalRecordsPage />
             </ProtectedRoute>
           }
         />
@@ -62,10 +56,7 @@ export function AppRoutes() {
           path="/atendimento/plano-tratamento"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DENTIST]}>
-              <PlaceholderPage
-                title="Plano de tratamento"
-                description="Orçamento e acompanhamento dos procedimentos previstos (entidade TreatmentPlan já modelada no backend)."
-              />
+              <TreatmentPlansPage />
             </ProtectedRoute>
           }
         />
@@ -75,7 +66,7 @@ export function AppRoutes() {
           path="/financeiro/caixa"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
-              <PlaceholderPage title="Caixa" description="Fluxo de caixa do dia/período." />
+              <CashFlowPage />
             </ProtectedRoute>
           }
         />
@@ -83,10 +74,7 @@ export function AppRoutes() {
           path="/financeiro/contas-a-receber"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
-              <PlaceholderPage
-                title="Contas a receber"
-                description="Recebíveis por paciente, parcelamentos e inadimplência."
-              />
+              <ReceivablesPage />
             </ProtectedRoute>
           }
         />
@@ -94,31 +82,17 @@ export function AppRoutes() {
           path="/financeiro/contas-a-pagar"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
-              <PlaceholderPage
-                title="Contas a pagar"
-                description="Despesas e pagamentos a fornecedores."
-              />
+              <PayablesPage />
             </ProtectedRoute>
           }
         />
 
-        <Route
-          path="/estoque"
-          element={
-            <PlaceholderPage
-              title="Estoque"
-              description="Materiais, validade e alertas de estoque mínimo."
-            />
-          }
-        />
+        <Route path="/estoque" element={<InventoryPage />} />
         <Route
           path="/relatorios"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-              <PlaceholderPage
-                title="Relatórios"
-                description="Exportação em PDF/Excel com dados cruzados de faturamento, agenda e estoque."
-              />
+              <ReportsPage />
             </ProtectedRoute>
           }
         />
@@ -126,7 +100,7 @@ export function AppRoutes() {
           path="/configuracoes"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-              <PlaceholderPage title="Configurações" description="Dados da clínica, preferências do sistema e usuário." />
+              <SettingsPage />
             </ProtectedRoute>
           }
         />

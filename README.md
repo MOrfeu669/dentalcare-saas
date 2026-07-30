@@ -5,6 +5,64 @@ prontuário eletrônico, plano de tratamento, financeiro integrado,
 controle de estoque, confirmação automática de consultas e relatórios
 gerenciais.
 
+## O que foi feito
+
+Este projeto já passou da fase de esqueleto e agora está com uma base
+funcional de ponta a ponta:
+
+- Backend NestJS com autenticação JWT, multi-tenancy por `clinic_id`,
+  guards, decorators e módulos de domínio bem separados.
+- Módulos de negócio implementados e conectados: Auth, Users, Clinics,
+  Patients, Appointments, Dentists, Procedures, Treatment Plans,
+  Medical Records, Inventory, Financial, Payments, Notifications,
+  Dashboard e Reports.
+- Frontend React + TypeScript com rotas protegidas, login/cadastro,
+  página de pacientes e várias telas de navegação já integradas ao
+  backend.
+- Fluxos principais funcionando: cadastro de clínica/funcionário,
+  agenda, planos de tratamento, financeiro, estoque, notificações e
+  relatórios.
+
+## O que ainda falta
+
+Algumas pendências importantes continuam abertas:
+
+- Integrar o Dashboard ao endpoint real de `/dashboard/summary` em vez
+  de manter dados mockados.
+- Melhorar o fluxo de onboarding de dentistas/funcionários com convite
+  ou aprovação administrativa, em vez de depender exclusivamente do CNPJ.
+- Trocar o sender de notificações real por um provedor externo
+  (WhatsApp/SMS/SMTP) quando houver credenciais.
+- Implementar exportação de relatórios para PDF/Excel.
+- Completar módulos transversais de Settings e Audit.
+- Refinar a experiência do frontend com tabelas, filtros e melhor
+  usabilidade nas telas já conectadas.
+
+## Pendências abertas
+
+- `TreatmentPlansService.completeItem()` já dispara o evento de
+  conclusão, mas a automação de consumo de estoque por procedimento
+  ainda depende da receita `ProcedureMaterial` estar plenamente ligada
+  ao fluxo.
+- A agenda ainda não usa `getWorkingHoursForDay()` do dentista como
+  regra de bloqueio adicional.
+- Itens de plano concluídos em dados antigos podem não aparecer em
+  relatórios agregados por `completedAt` se o histórico foi criado antes
+  dessa implementação.
+- Os relatórios ainda retornam JSON; a exportação para PDF/Excel é um
+  TODO de camada de serialização.
+
+## Sugestão do próximo passo
+
+A melhor próxima etapa é priorizar a experiência de uso do sistema com
+três entregas sequenciais:
+
+1. Conectar o Dashboard ao backend de forma real e completa.
+2. Polir as telas já existentes no frontend com tabelas, filtros e
+   estados de loading/erro mais claros.
+3. Trabalhar no fluxo de notificações e relatórios de forma mais
+   profissional, preparando a aplicação para uso real.
+
 ## Stack
 
 | Camada | Tecnologia |
@@ -69,6 +127,12 @@ npm run start:dev       # http://localhost:3000/api/v1 · docs em /docs
 
 Login de teste após o seed: `admin@odontovida.com.br` / `Senha123!`
 
+**Testes** (banco local do `.env` já precisa existir/estar migrado):
+```bash
+npm test                                       # unitários
+npm run test:e2e                               # integração (conecta no Postgres de verdade)
+```
+
 ### Frontend
 ```bash
 cd frontend
@@ -106,20 +170,22 @@ configurada no seu Postgres local — teste direto com
 projeto. No Windows, confira também se o `.env` foi salvo em UTF-8 e
 sem aspas sobrando ao redor do valor.
 
+**`error TS6059: File '.../test/*.e2e-spec.ts' is not under 'rootDir'`**
+Acontece se `tsconfig.json` tiver `rootDir: "./src"` sem excluir a
+pasta `test/` (que fica fora de `src/`, de propósito — os testes de
+integração precisam do projeto inteiro compilável, não só do `src`).
+Corrigido adicionando `"exclude": ["node_modules", "dist", "test"]` no
+`tsconfig.json` raiz; os testes de integração rodam com sua própria
+config (`test/jest-e2e.json`), então não precisam estar dentro de
+`rootDir`.
+
 ## Próximos passos sugeridos
 
-Todo o backend de negócio (Auth até Reports) está implementado e
-testado. O que resta:
-
-1. `ProcedureMaterial` (receita de consumo) + `InventoryModule` escutando
-   `treatment-plan-item.completed` — fecha o "consumo automático por procedimento".
-2. Implementar um `NotificationSender` real (WhatsApp Business API ou
-   SMTP) quando houver credenciais — hoje só loga (`ConsoleNotificationSender`).
-3. Exportação de Reports para PDF/Excel (`ReportsController` retorna
-   JSON hoje).
-4. `Settings` e `Audit` — módulos transversais, ainda stub.
-5. Conectar `DentistsService.getWorkingHoursForDay()` ao
-   `AppointmentConflictCheckerService` (não sugerir horário fora do expediente).
-6. No frontend: trocar os `PlaceholderPage` restantes (Agenda,
-   Atendimento/\*, Financeiro/\*, Estoque, Relatórios) por telas reais
-   consumindo a API — o padrão está em `pages/Patients/PatientsPage.tsx`.
+1. Trocar o Dashboard por dados reais de `GET /dashboard/summary`.
+2. Melhorar o onboarding de dentistas/funcionários com convite ou
+   aprovação do administrador.
+3.Implementar um `NotificationSender` real para WhatsApp/SMS/SMTP.
+4. Adicionar exportação de relatórios para PDF/Excel.
+5. Completar `Settings` e `Audit`.
+6. Polir o frontend com componentes mais completos nas telas de
+   agenda, financeiro, estoque e relatórios.

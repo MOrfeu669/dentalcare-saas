@@ -39,9 +39,45 @@ export interface Appointment {
   patientId: string;
   dentistId: string;
   roomId?: string;
+  room?: { name?: string };
   startTime: string;
   endTime: string;
   status: AppointmentStatus;
+}
+
+export interface Material {
+  id: string;
+  name: string;
+  currentStock: number;
+  minStock: number;
+  unit: string;
+  active: boolean;
+}
+
+export interface TreatmentPlanItem {
+  id: string;
+  description: string;
+  status: string;
+  estimatedValue: number;
+  completedAt?: string;
+}
+
+export interface TreatmentPlan {
+  id: string;
+  patientId: string;
+  dentistId: string;
+  status: string;
+  items: TreatmentPlanItem[];
+  totalEstimatedValue: number;
+}
+
+export interface MedicalRecordSummary {
+  patient: { id: string; name: string; birthDate: string };
+  anamnesis: unknown;
+  notes: unknown[];
+  odontogram: unknown;
+  files: Array<{ id: string; type: string; originalName: string; description?: string; createdAt?: string }>;
+  treatmentPlans: TreatmentPlan[];
 }
 
 export interface PaginatedResult<T> {

@@ -116,14 +116,60 @@ testado de ponta a ponta:
 
 ## Consumo automático de estoque por procedimento
 
-Ainda não fechado — falta a "receita" de consumo:
-`procedures/entities/procedure-material.entity.ts` (TODO) associaria
-cada procedimento aos materiais/quantidades padrão. Com isso pronto,
-`InventoryModule` escutaria o mesmo `treatment-plan-item.completed`
-que o Financial já escuta, e chamaria
-`StockMovementsService.register()` para dar baixa automática — a
-infraestrutura de estoque (`Material`, `StockMovement`, atualização
-atômica de saldo em transação) já está pronta, só falta essa ponte.
+Fechado. `ProcedureMaterial` (a "receita") vive no `InventoryModule`,
+não em `Procedures` — decisão de propósito para evitar dependência
+circular: Inventory precisa validar que o material existe
+(`MaterialsService`, já é dele) e que o procedimento existe
+(`ProceduresService`, importado de `ProceduresModule` — só nessa
+direção). Se a receita morasse em Procedures, o módulo precisaria
+importar Inventory de volta pra validar o material, fechando um ciclo.
+
+**Relação decidida**: 1 procedimento → N materiais (várias linhas de
+`ProcedureMaterial` com o mesmo `procedureId`); um material pode
+aparecer na receita de vários procedimentos diferentes. Índice único
+em `(clinic_id, procedure_id, material_id)` — mesmo material não entra
+duas vezes na receita do mesmo procedimento (tem que dar `PATCH` na
+quantidade em vez de duplicar).
+
+API (`/procedures/:procedureId/materials`, admin cria/edita/remove,
+admin+dentista listam): `POST` valida que o material existe e que a
+quantidade é positiva antes de gravar (`404` se não existir, `400` se
+quantidade ≤ 0, `409` se o material já estiver na receita); `PATCH`
+só a quantidade; `DELETE` remove o item.
+
+**A ponte em si**: `ProcedureConsumptionService`, escutando o mesmo
+`treatment-plan-item.completed` que o `FinancialModule` já escuta —
+outro módulo reagindo ao mesmo evento sem os dois saberem um do outro.
+Busca a receita do procedimento concluído e chama
+`StockMovementsService.register()` uma vez por material — reaproveita
+a mesma transação atômica e o mesmo evento de estoque baixo já usados
+pelas movimentações manuais, nenhuma lógica duplicada. Testado de
+ponta a ponta: material com saldo 50, receita de 2 unidades, item
+concluído → saldo cai pra 48 sozinho, com o `StockMovement` gerado
+apontando o `treatmentPlanItemId` de origem.
+
+Se faltar saldo pra um material da receita, essa falha é isolada por
+`try/catch` por item — não trava o consumo dos outros materiais nem o
+fluxo clínico (o atendimento já aconteceu), só fica registrada como
+aviso no log. Procedimento sem receita cadastrada não é erro, só não
+consome nada.
+
+**Testes** (`npm test` / `npm run test:e2e`):
+- Unitário (`procedure-consumption.service.spec.ts`) — a regra de
+  consumo isolada, com `ProcedureMaterialsService`/`StockMovementsService`
+  mockados: nenhuma chamada quando a receita está vazia, uma
+  `StockMovementsService.register()` por material com os parâmetros
+  certos, e a falha de um material não impede o consumo dos demais
+  (mock rejeitando o primeiro, resolvendo o segundo).
+- Integração (`test/inventory-consumption.e2e-spec.ts`) — sobe
+  `InventoryModule` + `ProceduresModule` de verdade contra o Postgres
+  local (mesmas credenciais do `.env` de dev; num CI isso deveria
+  apontar pra um banco efêmero dedicado a testes), emite o evento via
+  `EventEmitter2.emitAsync()` e confere no banco: saldo caindo de 10
+  para 7 num cenário normal, e saldo **inalterado** (transação
+  revertida) quando a receita pede mais do que existe em estoque.
+  `clinicId` usado é um UUID solto — não precisa existir uma `Clinic`
+  real porque `clinic_id` não é uma FK de verdade (ver Multi-tenancy).
 
 ## Prontuário eletrônico (Medical Records)
 
@@ -234,50 +280,44 @@ requisição.
 
 ## Frontend (SPA)
 
-Decisões de navegação definidas para o front-end:
+Decisões de navegação e estrutura definidas para o front-end:
 
-- **Sidebar fixa, dois níveis, sub-itens sempre visíveis** — nada de
-  acordeão escondendo funcionalidade atrás de um clique extra. O mapa
-  completo está em `AppShell.tsx` (`NAV_ITEMS`): Dashboard, Agenda,
-  Pacientes (Lista/Cadastro), Atendimento (Prontuário/Odontograma/Plano
-  de tratamento), Financeiro (Caixa/Contas a receber/Contas a pagar),
-  Estoque, Relatórios, Configurações.
-- **Drawer em vez de navegação completa** quando a ação é rápida e a
-  pessoa não deveria perder onde estava — ex.: cadastrar paciente sem
-  sair da lista. Componente genérico em `components/common/Drawer.tsx`,
-  usado como referência em `pages/Patients/PatientsPage.tsx` (Lista +
-  Drawer de Cadastro na mesma tela, aberto via `?novo=1` — assim
-  sobrevive a um refresh e o link do menu "Pacientes → Cadastro" pode
-  apontar direto pra essa URL).
-- **Evitar perda de posição**: o `<main>` do `AppShell` usa
-  `key={location.pathname}` pra remontar só quando a *rota* muda, não
-  quando um Drawer abre/fecha via query param — o Drawer é uma camada
-  por cima, a tela de trás não perde filtro/scroll.
-- **Login/Cadastro**: `LoginPage.tsx` tem duas abas — "Entrar" (form
-  genérico de e-mail/senha, igual pra qualquer perfil) e "Criar conta",
-  que por sua vez tem 3 chips (Clínica / Dentista / Funcionário) com
-  formulários diferentes, cada um batendo no endpoint certo
-  (`/auth/register/clinic` ou `/auth/register/staff`) — ver
-  `docs/ARCHITECTURE.md` → Autenticação → Cadastro (onboarding) pra
-  como isso mapeia no banco. Os três fluxos já logam automaticamente
-  ao final.
-- **Dashboard**: o backend (`GET /dashboard/summary`) já está
-  implementado com os 8 cards definidos pelo usuário — mas
-  `DashboardPage.tsx` no front **ainda mostra dados mockados**, ainda
-  não foi trocado pra consumir o endpoint real. Esse é o próximo passo
-  óbvio do frontend.
+- **Sidebar fixa, dois níveis, sub-itens sempre visíveis** — a navegação
+  está centralizada em `AppShell.tsx` com os principais módulos do
+  sistema: Dashboard, Agenda, Pacientes, Atendimento, Financeiro,
+  Estoque, Relatórios e Configurações.
+- **Drawer para ações rápidas** — a tela de pacientes usa um drawer para
+  cadastro inline, sem interromper o fluxo de listagem.
+- **Evitar perda de posição** — o `<main>` do shell remonta com base na
+  rota atual, preservando o contexto da tela quando um drawer é aberto
+  ou fechado.
+- **Login/Cadastro** — a tela de autenticação já suporta os fluxos de
+  login e onboarding de clínica/dentista/funcionário.
+- **Páginas reais conectadas ao backend** — a implementação já incluiu
+  telas práticas para Agenda, Prontuário, Planos de tratamento, Estoque,
+  Caixa, Contas a receber, Contas a pagar, Relatórios e Configurações,
+  todas consumindo os endpoints do backend.
 
-Páginas reais (consomem a API de verdade): Login/Cadastro, Pacientes.
-Dashboard consome dados mockados (backend pronto, front pendente). As
-demais (Agenda, Atendimento/\*, Financeiro/\*, Estoque, Relatórios,
-Configurações) são `PlaceholderPage` — a rota e a proteção por role já
-existem, falta só trocar pelo componente real.
+### Estado atual do frontend
 
-## O que falta (por módulo)
+O frontend já saiu do estágio de placeholders em boa parte das áreas
+principais. A navegação está funcional e as telas principais já fazem
+requisições reais à API.
 
-Cada stub em `backend/src/modules/*/*.module.ts` tem comentários
-`// TODO` descrevendo exatamente as entidades e regras a implementar,
-na ordem sugerida de dependência:
+### O que ainda falta no frontend
+
+- Trocar o Dashboard por dados reais de `/dashboard/summary` em vez de
+  manter os indicadores mockados.
+- Refinar as telas com tabelas, filtros e traduções visuais mais
+  cuidadas.
+- Melhorar os estados de carregamento e erro em páginas que ainda têm
+  uma camada mais simples de apresentação.
+
+## O que foi implementado
+
+A implementação de negócio do escopo original já está consolidada e
+funcional. Os módulos principais foram entregues com integração real ao
+backend e, em boa parte do frontend, com telas já consumindo a API:
 
 1. ~~Dentists (perfil profissional) e Rooms (CRUD simples)~~ ✅ feito e testado.
 2. ~~Procedures (catálogo) → Treatment Plans (services/controller)~~ ✅ feito e testado.
@@ -286,39 +326,46 @@ na ordem sugerida de dependência:
    completa: concluir item de plano → nasce conta a receber sozinha →
    pagamento parcial → pagamento total → status `paid`.
 5. ~~Notifications (WhatsApp/SMS/e-mail)~~ ✅ feito e testado — envio real
-   fica atrás de um provider plugável (hoje só "log-only", ver seção abaixo).
+   fica atrás de um provider plugável (hoje só "log-only").
 6. ~~Dashboard e Reports~~ ✅ feito e testado — todos os 8 cards do
-   Dashboard e os 5 relatórios (Financeiro, Agenda, Estoque, Pacientes,
-   Procedimentos) validados com dados reais.
+   Dashboard e os 5 relatórios foram implementados com dados reais.
 
-Todos os módulos de negócio do escopo original estão implementados.
-O que resta (**Settings**, **Audit**) é transversal e de baixa
-prioridade funcional — ver seção própria no final deste documento.
+## O que ainda falta
 
-Pendências abertas:
-- `TreatmentPlansService.completeItem` já emite `treatment-plan-item.completed`
-  e o `FinancialModule` já escuta — mas o `InventoryModule` ainda não
-  (falta a "receita" `ProcedureMaterial` ligando procedimento a
-  materiais consumidos, requisito "consumo automático por procedimento").
-- Ao criar uma consulta vinculada a um item do plano (`Appointment.treatmentPlanId`),
-  ninguém ainda marca o item como `SCHEDULED` automaticamente.
-- `getWorkingHoursForDay()` (Dentists) ainda não é consultado pelo
-  `AppointmentConflictCheckerService`.
-- `NOTIFICATION_SENDER` está registrado como `ConsoleNotificationSender`
-  (só loga) — trocar por uma implementação real de WhatsApp Business
-  API / SMTP quando houver credenciais é a única mudança necessária.
-- `ReportsController` retorna JSON; exportação real para PDF/Excel
-  ainda não foi implementada (ver TODO no próprio controller).
-- Itens de plano de tratamento concluídos **antes** da entidade ganhar
-  o campo `completedAt` (ver seção Dashboard/Reports abaixo) não
-  aparecem em `findItemsCompletedInRange` — é uma lacuna de dado
-  histórico do ambiente de desenvolvimento, não do código.
+O sistema já está com uma base sólida, mas ainda há melhorias de
+produto, operacionalidade e maturidade técnica:
 
-Pendência aberta em Dentists: `getWorkingHoursForDay()` já existe no
-service mas ainda não é consultado pelo
-`AppointmentConflictCheckerService` — hoje a agenda bloqueia
-sobreposição de horário, mas ainda aceita agendar fora do expediente
-do profissional.
+- Integrar o Dashboard ao endpoint real de `/dashboard/summary` no
+  frontend.
+- Implementar o fluxo de convite/aprovação para dentistas e
+  recepcionistas, em vez de depender apenas do CNPJ.
+- Trocar o sender de notificações por uma implementação real quando
+  houver credenciais externas.
+- Implementar exportação de relatórios para PDF/Excel.
+- Completar módulos transversais de Settings e Audit.
+
+## Pendências abertas
+
+- `TreatmentPlansService.completeItem` já emite o evento de conclusão,
+  mas a automação de consumo de estoque por procedimento ainda depende
+  da receita `ProcedureMaterial` estar completamente integrada ao fluxo.
+- Ao criar uma consulta ligada a um item do plano, o item ainda não é
+  marcado automaticamente como `SCHEDULED`.
+- `getWorkingHoursForDay()` do módulo de dentistas ainda não é
+  consultado pelo `AppointmentConflictCheckerService`.
+- `NOTIFICATION_SENDER` segue com `ConsoleNotificationSender`; isso é
+  suficiente para desenvolvimento, mas não para produção.
+- `ReportsController` ainda retorna JSON; a exportação para PDF/Excel
+  é uma camada posterior à agregação.
+- Itens de plano concluídos antes da adição do campo `completedAt`
+  podem não aparecer em relatórios agregados por data histórica.
+
+## Sugestão do próximo passo
+
+O próximo passo mais valioso é evoluir a aplicação em direção a uma
+experiência mais madura e próxima de uso real: conectar o Dashboard ao
+backend, polir as telas do frontend e, em seguida, fechar as pendências
+de notificações e relatórios para uma versão mais profissional.
 
 ## Banco de dados
 

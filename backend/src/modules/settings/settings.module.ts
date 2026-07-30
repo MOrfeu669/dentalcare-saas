@@ -12,3 +12,5 @@ import { SettingsService } from './services/settings.service';
   exports: [SettingsService],
 })
 export class SettingsModule {}
+
+// TODO: entities/clinic-settings.entity.ts (clinicId 1:1, theme, notificationPreferences jsonb)

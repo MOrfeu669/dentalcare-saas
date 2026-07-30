@@ -2,7 +2,7 @@ import { IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export class CreateTreatmentPlanItemDto {
   @IsUUID()
-  procedureId: string;
+  procedureId?: string;
 
   @IsOptional()
   @IsString()

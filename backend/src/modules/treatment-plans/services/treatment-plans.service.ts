@@ -135,6 +135,7 @@ export class TreatmentPlansService {
       clinicId,
       treatmentPlanId: id,
       patientId: plan.patientId,
+      dentistId: plan.dentistId,
       item,
     });
 
