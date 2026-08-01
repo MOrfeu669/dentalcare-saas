@@ -99,6 +99,10 @@ export class NotificationsService {
     const message = `Estoque baixo: ${payload.materialName} está em ${payload.currentStock} (mínimo: ${payload.minStock}).`;
 
     for (const admin of admins) {
+      if (!admin.email) {
+        continue;
+      }
+
       const result = await this.sender.send(NotificationChannel.EMAIL, admin.email, message);
 
       const log = this.notificationLogRepository.create({

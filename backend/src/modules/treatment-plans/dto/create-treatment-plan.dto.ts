@@ -4,16 +4,16 @@ import { CreateTreatmentPlanItemDto } from './create-treatment-plan-item.dto';
 
 export class CreateTreatmentPlanDto {
   @IsUUID()
-  patientId?: string;
+  patientId: string;
 
   @IsUUID()
-  dentistId?: string;
+  dentistId: string;
 
   @IsArray()
   @ArrayMinSize(1, { message: 'O plano precisa ter ao menos um procedimento' })
   @ValidateNested({ each: true })
   @Type(() => CreateTreatmentPlanItemDto)
-  items?: CreateTreatmentPlanItemDto[];
+  items: CreateTreatmentPlanItemDto[];
 
   @IsOptional()
   @IsString()

@@ -302,16 +302,17 @@ Decisões de navegação e estrutura definidas para o front-end:
 
 O frontend já saiu do estágio de placeholders em boa parte das áreas
 principais. A navegação está funcional e as telas principais já fazem
-requisições reais à API.
+requisições reais à API, incluindo Dashboard, Agenda, Prontuário,
+Planos de tratamento, Estoque, Financeiro, Relatórios e Configurações.
 
 ### O que ainda falta no frontend
 
-- Trocar o Dashboard por dados reais de `/dashboard/summary` em vez de
-  manter os indicadores mockados.
 - Refinar as telas com tabelas, filtros e traduções visuais mais
   cuidadas.
 - Melhorar os estados de carregamento e erro em páginas que ainda têm
   uma camada mais simples de apresentação.
+- Completar a camada de Settings/Audit com dados reais e interação mais
+  completa.
 
 ## O que foi implementado
 
@@ -335,8 +336,6 @@ backend e, em boa parte do frontend, com telas já consumindo a API:
 O sistema já está com uma base sólida, mas ainda há melhorias de
 produto, operacionalidade e maturidade técnica:
 
-- Integrar o Dashboard ao endpoint real de `/dashboard/summary` no
-  frontend.
 - Implementar o fluxo de convite/aprovação para dentistas e
   recepcionistas, em vez de depender apenas do CNPJ.
 - Trocar o sender de notificações por uma implementação real quando
@@ -363,9 +362,9 @@ produto, operacionalidade e maturidade técnica:
 ## Sugestão do próximo passo
 
 O próximo passo mais valioso é evoluir a aplicação em direção a uma
-experiência mais madura e próxima de uso real: conectar o Dashboard ao
-backend, polir as telas do frontend e, em seguida, fechar as pendências
-de notificações e relatórios para uma versão mais profissional.
+experiência mais madura e próxima de uso real: polir as telas do
+frontend, fechar as pendências de notificações e relatórios e, em
+seguida, completar Settings/Audit para uma versão mais profissional.
 
 ## Banco de dados
 

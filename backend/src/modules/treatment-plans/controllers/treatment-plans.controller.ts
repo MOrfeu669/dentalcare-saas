@@ -38,6 +38,9 @@ export class TreatmentPlansController {
     @Param('id') id: string,
     @Body() dto: UpdateTreatmentPlanStatusDto,
   ) {
+    if (!dto.status) {
+      throw new Error('status é obrigatório.');
+    }
     return this.treatmentPlansService.updateStatus(user.clinicId, id, dto.status);
   }
 

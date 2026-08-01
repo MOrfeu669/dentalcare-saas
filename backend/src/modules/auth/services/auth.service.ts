@@ -19,7 +19,7 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const user = await this.usersService.findByEmail(dto.email);
-    if (!user || !user.active) {
+    if (!user || !user.active || !user.passwordHash || !user.email || !user.role) {
       throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 

@@ -3,17 +3,17 @@ import { StockMovementType } from '../entities/stock-movement.entity';
 
 export class CreateStockMovementDto {
   @IsUUID()
-  materialId: string;
+  materialId?: string;
 
   @IsEnum(StockMovementType)
-  type: StockMovementType;
+  type?: StockMovementType;
 
   @IsNumber()
   @Min(0.01)
-  quantity: number;
+  quantity?: number;
 
   @IsString()
-  reason: string;
+  reason?: string;
 
   @IsOptional()
   @IsUUID()

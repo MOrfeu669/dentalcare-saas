@@ -4,17 +4,17 @@ import { UserRole } from '../../../common/interfaces/user-role.enum';
 export class CreateUserDto {
   @IsString()
   @MinLength(2)
-  name?: string;
+  name: string;
 
   @IsEmail()
-  email?: string;
+  email: string;
 
   @IsString()
   @MinLength(8, { message: 'A senha deve ter pelo menos 8 caracteres' })
-  password?: string;
+  password: string;
 
   @IsEnum(UserRole)
-  role?: UserRole;
+  role: UserRole;
 
   @IsOptional()
   @IsString()

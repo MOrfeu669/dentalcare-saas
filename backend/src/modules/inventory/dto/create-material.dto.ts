@@ -3,11 +3,11 @@ import { IsDateString, IsNumber, IsOptional, IsString, Length, Min } from 'class
 export class CreateMaterialDto {
   @IsString()
   @Length(2, 150)
-  name: string;
+  name?: string;
 
   @IsString()
   @Length(1, 20)
-  unit: string;
+  unit?: string;
 
   @IsOptional()
   @IsNumber()

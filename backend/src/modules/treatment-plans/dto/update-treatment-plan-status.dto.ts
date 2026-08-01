@@ -3,5 +3,5 @@ import { TreatmentPlanStatus } from '../entities/treatment-plan.entity';
 
 export class UpdateTreatmentPlanStatusDto {
   @IsEnum(TreatmentPlanStatus)
-  status?: TreatmentPlanStatus;
+  status: TreatmentPlanStatus;
 }

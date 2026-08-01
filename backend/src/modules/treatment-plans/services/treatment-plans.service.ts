@@ -43,6 +43,10 @@ export class TreatmentPlansService {
   async create(clinicId: string, dto: CreateTreatmentPlanDto): Promise<TreatmentPlan> {
     // Garante que paciente e dentista realmente pertencem a esta clínica
     // (nunca confia em IDs vindos do body sem checar o tenant)
+    if (!dto.items?.length) {
+      throw new BadRequestException('O plano precisa ter ao menos um item.');
+    }
+
     await this.patientsService.findOne(clinicId, dto.patientId);
 
     const dentist = await this.usersService.findByIdInClinic(dto.dentistId, clinicId);
@@ -52,6 +56,10 @@ export class TreatmentPlansService {
 
     const items: TreatmentPlanItem[] = [];
     for (const itemDto of dto.items) {
+      if (!itemDto.procedureId) {
+        throw new BadRequestException('Cada item do plano precisa de um procedureId.');
+      }
+
       const procedure = await this.proceduresService.findOne(clinicId, itemDto.procedureId);
       items.push({
         id: randomUUID(),

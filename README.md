@@ -17,18 +17,19 @@ funcional de ponta a ponta:
   Medical Records, Inventory, Financial, Payments, Notifications,
   Dashboard e Reports.
 - Frontend React + TypeScript com rotas protegidas, login/cadastro,
-  página de pacientes e várias telas de navegação já integradas ao
-  backend.
+  página de pacientes e telas de navegação já integradas ao backend,
+  incluindo Dashboard, Agenda, Prontuário, Planos de tratamento,
+  Estoque, Financeiro, Relatórios e Configurações.
 - Fluxos principais funcionando: cadastro de clínica/funcionário,
   agenda, planos de tratamento, financeiro, estoque, notificações e
   relatórios.
+- O Dashboard agora consome o endpoint real `GET /dashboard/summary`
+  e a build do backend e do frontend foram validadas com sucesso.
 
 ## O que ainda falta
 
 Algumas pendências importantes continuam abertas:
 
-- Integrar o Dashboard ao endpoint real de `/dashboard/summary` em vez
-  de manter dados mockados.
 - Melhorar o fluxo de onboarding de dentistas/funcionários com convite
   ou aprovação administrativa, em vez de depender exclusivamente do CNPJ.
 - Trocar o sender de notificações real por um provedor externo
@@ -57,11 +58,11 @@ Algumas pendências importantes continuam abertas:
 A melhor próxima etapa é priorizar a experiência de uso do sistema com
 três entregas sequenciais:
 
-1. Conectar o Dashboard ao backend de forma real e completa.
-2. Polir as telas já existentes no frontend com tabelas, filtros e
+1. Polir as telas já existentes no frontend com tabelas, filtros e
    estados de loading/erro mais claros.
-3. Trabalhar no fluxo de notificações e relatórios de forma mais
+2. Trabalhar no fluxo de notificações e relatórios de forma mais
    profissional, preparando a aplicação para uso real.
+3. Evoluir Settings e Audit para uma camada transversal mais completa.
 
 ## Stack
 
@@ -181,11 +182,10 @@ config (`test/jest-e2e.json`), então não precisam estar dentro de
 
 ## Próximos passos sugeridos
 
-1. Trocar o Dashboard por dados reais de `GET /dashboard/summary`.
-2. Melhorar o onboarding de dentistas/funcionários com convite ou
+1. Melhorar o onboarding de dentistas/funcionários com convite ou
    aprovação do administrador.
-3.Implementar um `NotificationSender` real para WhatsApp/SMS/SMTP.
-4. Adicionar exportação de relatórios para PDF/Excel.
-5. Completar `Settings` e `Audit`.
-6. Polir o frontend com componentes mais completos nas telas de
+2. Implementar um `NotificationSender` real para WhatsApp/SMS/SMTP.
+3. Adicionar exportação de relatórios para PDF/Excel.
+4. Completar `Settings` e `Audit`.
+5. Polir o frontend com componentes mais completos nas telas de
    agenda, financeiro, estoque e relatórios.
