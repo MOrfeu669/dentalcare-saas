@@ -23,18 +23,7 @@ export class AuditService {
     ip?: string;
     details?: string;
   }): Promise<AuditLog> {
-    const entry = this.auditRepository.create({
-      clinicId: params.clinicId,
-      userId: params.userId,
-      action: params.action,
-      entityType: params.entityType,
-      entityId: params.entityId,
-      before: params.before,
-      after: params.after,
-      ip: params.ip,
-      details: params.details,
-    } as Partial<AuditLog>);
-
+    const entry = this.auditRepository.create(params as Partial<AuditLog>);
     return this.auditRepository.save(entry as AuditLog);
   }
 

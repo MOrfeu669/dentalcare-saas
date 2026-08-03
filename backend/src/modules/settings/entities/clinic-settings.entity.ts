@@ -13,7 +13,7 @@ export class ClinicSettings extends TenantBaseEntity {
   @Column({ name: 'time_zone', default: 'America/Sao_Paulo' })
   timeZone: string;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ name: 'notification_preferences', type: 'jsonb', default: {} })
   notificationPreferences: {
     appointmentReminders: boolean;
     lowStockAlerts: boolean;

@@ -38,6 +38,20 @@ export class DentistsService {
     return this.dentistProfileRepository.find({
       where: { clinicId },
       relations: ['user'],
+      // select explícito na relação — nunca deixar passwordHash vazar
+      // pra fora, mesmo que User ganhe campos sensíveis novos no futuro.
+      select: {
+        id: true,
+        clinicId: true,
+        userId: true,
+        specialties: true,
+        workingHours: true,
+        commissionRate: true,
+        bio: true,
+        createdAt: true,
+        updatedAt: true,
+        user: { id: true, name: true, email: true, role: true, professionalLicense: true, active: true },
+      },
       order: { createdAt: 'ASC' },
     });
   }
@@ -46,6 +60,18 @@ export class DentistsService {
     const profile = await this.dentistProfileRepository.findOne({
       where: { clinicId, userId },
       relations: ['user'],
+      select: {
+        id: true,
+        clinicId: true,
+        userId: true,
+        specialties: true,
+        workingHours: true,
+        commissionRate: true,
+        bio: true,
+        createdAt: true,
+        updatedAt: true,
+        user: { id: true, name: true, email: true, role: true, professionalLicense: true, active: true },
+      },
     });
     if (!profile) throw new NotFoundException('Perfil de dentista não encontrado');
     return profile;

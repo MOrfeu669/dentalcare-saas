@@ -1,0 +1,253 @@
+.appt-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+
+.appt-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.appt-tab.active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.appt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.appt-form label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-top: 12px;
+}
+
+.appt-form input,
+.appt-form select,
+.appt-form textarea {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  width: 100%;
+}
+
+.appt-form input:focus,
+.appt-form select:focus,
+.appt-form textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.appt-form textarea {
+  resize: vertical;
+}
+
+.appt-char-count {
+  align-self: flex-end;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.appt-row {
+  display: flex;
+  gap: 10px;
+}
+
+.appt-row-field {
+  flex: 1;
+}
+
+.appt-patient-search {
+  position: relative;
+}
+
+.appt-patient-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+}
+
+.appt-patient-dropdown li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13.5px;
+}
+
+.appt-patient-dropdown li:hover {
+  background: var(--color-primary-soft);
+}
+
+.appt-patient-cpf {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.appt-link-button {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 0 0;
+}
+
+.appt-inline-notice {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin: 6px 0 0;
+}
+
+.appt-find-slot-btn {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.appt-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.appt-slot-chip {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.appt-slot-chip:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.appt-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 18px 0 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.appt-return-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.appt-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.appt-switch {
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-border);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.appt-switch.on {
+  background: var(--color-primary);
+}
+
+.appt-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.appt-switch.on .appt-switch-knob {
+  transform: translateX(16px);
+}
+
+.appt-label-colors {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.appt-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.appt-color-swatch.selected {
+  border-color: var(--color-text);
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.appt-error {
+  color: var(--color-danger);
+  font-size: 13px;
+  margin-top: 14px;
+}

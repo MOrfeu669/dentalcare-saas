@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, MoreThan, Not, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -6,9 +6,12 @@ import { Appointment } from '../entities/appointment.entity';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
 import { AppointmentConflictCheckerService } from './appointment-conflict-checker.service';
 import { AppointmentStatus } from '../interfaces/appointment-status.enum';
+import { AppointmentType } from '../interfaces/appointment-type.enum';
 
 @Injectable()
 export class AppointmentsService {
+  private readonly logger = new Logger('AppointmentsService');
+
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepository: Repository<Appointment>,
@@ -19,6 +22,7 @@ export class AppointmentsService {
   async create(clinicId: string, dto: CreateAppointmentDto): Promise<Appointment> {
     const startTime = new Date(dto.startTime);
     const endTime = new Date(dto.endTime);
+    const { returnSchedule, ...appointmentFields } = dto;
 
     await this.conflictChecker.assertNoConflict({
       clinicId,
@@ -29,18 +33,80 @@ export class AppointmentsService {
     });
 
     const appointment = this.appointmentRepository.create({
-      ...dto,
+      ...appointmentFields,
       clinicId,
       startTime,
       endTime,
     });
     const saved = await this.appointmentRepository.save(appointment);
 
-    // O módulo de Notifications escuta este evento para agendar o lembrete
-    // automático (WhatsApp/SMS/e-mail) — sem acoplar Appointments a Notifications.
-    this.eventEmitter.emit('appointment.created', { appointmentId: saved.id, clinicId });
+    // "Confirmação automática" do modal: só agenda o lembrete quando é
+    // uma Consulta de verdade (tem paciente) e o switch está ligado.
+    // O módulo de Notifications escuta este evento — sem acoplar
+    // Appointments a Notifications.
+    const isConsultation = (dto.type ?? AppointmentType.CONSULTATION) === AppointmentType.CONSULTATION;
+    if (isConsultation && dto.autoConfirmationEnabled !== false) {
+      this.eventEmitter.emit('appointment.created', { appointmentId: saved.id, clinicId });
+    }
+
+    if (returnSchedule && isConsultation) {
+      await this.scheduleReturnIfRequested(clinicId, saved, returnSchedule);
+    }
 
     return saved;
+  }
+
+  /**
+   * "Data de retorno" do modal — cria uma segunda consulta automática
+   * (mesmo paciente/dentista/sala/duração da original) na data calculada.
+   * Falha isolada de propósito: se der conflito de horário no dia do
+   * retorno, não derruba a criação da consulta original — só fica
+   * registrado como aviso (mesmo padrão usado no consumo automático de
+   * estoque).
+   */
+  private async scheduleReturnIfRequested(
+    clinicId: string,
+    original: Appointment,
+    returnSchedule: NonNullable<CreateAppointmentDto['returnSchedule']>,
+  ): Promise<void> {
+    const returnDate = returnSchedule.specificDate
+      ? new Date(returnSchedule.specificDate)
+      : new Date(original.startTime);
+
+    if (returnSchedule.days) {
+      returnDate.setDate(returnDate.getDate() + returnSchedule.days);
+    }
+    if (returnSchedule.specificDate) {
+      // Mantém o mesmo horário do dia da consulta original, só troca a data.
+      returnDate.setHours(
+        original.startTime.getHours(),
+        original.startTime.getMinutes(),
+        0,
+        0,
+      );
+    }
+
+    const durationMs = original.endTime.getTime() - original.startTime.getTime();
+    const returnEnd = new Date(returnDate.getTime() + durationMs);
+
+    try {
+      await this.create(clinicId, {
+        type: AppointmentType.CONSULTATION,
+        patientId: original.patientId!,
+        dentistId: original.dentistId,
+        roomId: original.roomId ?? undefined,
+        startTime: returnDate.toISOString(),
+        endTime: returnEnd.toISOString(),
+        notes: 'Retorno agendado automaticamente',
+        label: 'Retorno',
+        labelColor: '#4D8B6F',
+        autoConfirmationEnabled: original.autoConfirmationEnabled,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Não foi possível agendar o retorno automático da consulta ${original.id}: ${(error as Error).message}`,
+      );
+    }
   }
 
   async reschedule(
@@ -161,5 +227,10 @@ export class AppointmentsService {
       where: { clinicId, startTime: Between(from, to) },
       order: { startTime: 'ASC' },
     });
+  }
+
+  /** "Encontrar horário" do modal — delega pro conflict checker. */
+  findAvailableSlots(clinicId: string, dentistId: string, date: Date, durationMinutes: number) {
+    return this.conflictChecker.findAvailableSlots(clinicId, dentistId, date, durationMinutes);
   }
 }

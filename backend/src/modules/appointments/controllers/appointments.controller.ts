@@ -24,6 +24,22 @@ export class AppointmentsController {
     return this.appointmentsService.getDaySchedule(user.clinicId, new Date(date));
   }
 
+  @Get('available-slots')
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DENTIST)
+  getAvailableSlots(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('dentistId') dentistId: string,
+    @Query('date') date: string,
+    @Query('durationMinutes') durationMinutes: string,
+  ) {
+    return this.appointmentsService.findAvailableSlots(
+      user.clinicId,
+      dentistId,
+      new Date(date),
+      parseInt(durationMinutes, 10) || 30,
+    );
+  }
+
   @Patch(':id/reschedule')
   @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
   reschedule(

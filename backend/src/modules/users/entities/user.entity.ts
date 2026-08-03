@@ -8,7 +8,7 @@ import { Clinic } from '../../clinics/entities/clinic.entity';
 export class User extends TenantBaseEntity {
   @ManyToOne(() => Clinic, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'clinic_id' })
-  clinic?: Clinic;
+  clinic: Clinic;
 
   @Column({ length: 150 })
   name: string;
@@ -24,11 +24,11 @@ export class User extends TenantBaseEntity {
 
   // Preenchido apenas quando role = DENTIST — vincula ao registro profissional
   @Column({ name: 'professional_license', nullable: true, length: 30 })
-  professionalLicense?: string; // CRO
+  professionalLicense: string; // CRO
 
   @Column({ default: true })
   active: boolean;
 
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
-  lastLoginAt?: Date;
+  lastLoginAt: Date;
 }

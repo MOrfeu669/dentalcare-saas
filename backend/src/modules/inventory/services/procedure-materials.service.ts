@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProcedureMaterial } from '../entities/procedure-material.entity';
@@ -27,9 +27,6 @@ export class ProcedureMaterialsService {
     dto: CreateProcedureMaterialDto,
   ): Promise<ProcedureMaterial> {
     await this.proceduresService.findOne(clinicId, procedureId); // 404 se não existir/não for desta clínica
-    if (!dto.materialId) {
-      throw new BadRequestException('materialId é obrigatório.');
-    }
     await this.materialsService.findOne(clinicId, dto.materialId); // idem pro material
 
     const existing = await this.procedureMaterialRepository.findOne({

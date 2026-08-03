@@ -19,7 +19,9 @@ export class AddSettingsAndAudit1785030000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_clinic_settings_clinic_id" ON "clinic_settings" ("clinic_id")`);
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "IDX_clinic_settings_clinic_id" ON "clinic_settings" ("clinic_id")`,
+    );
 
     await queryRunner.query(`
       CREATE TABLE "audit_logs" (
@@ -40,7 +42,9 @@ export class AddSettingsAndAudit1785030000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(`CREATE INDEX "IDX_audit_logs_clinic_created" ON "audit_logs" ("clinic_id", "created_at")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_audit_logs_clinic_created" ON "audit_logs" ("clinic_id", "created_at")`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

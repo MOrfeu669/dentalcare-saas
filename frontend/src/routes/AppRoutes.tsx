@@ -13,6 +13,7 @@ import { PayablesPage } from '../pages/Financial/PayablesPage';
 import { SettingsPage } from '../pages/Settings/SettingsPage';
 import { AppShell } from '../components/layout/AppShell';
 import { ProtectedRoute } from '../components/common/ProtectedRoute';
+import { PlaceholderPage } from '../components/common/PlaceholderPage';
 import { UserRole } from '../types';
 
 export function AppRoutes() {
@@ -40,7 +41,10 @@ export function AppRoutes() {
           path="/atendimento/prontuario"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DENTIST]}>
-              <MedicalRecordsPage />
+              <PlaceholderPage
+                title="Prontuário"
+                description="Histórico clínico, anamnese, evolução e documentos do paciente (módulo MedicalRecords, ainda stub no backend)."
+              />
             </ProtectedRoute>
           }
         />
@@ -48,7 +52,10 @@ export function AppRoutes() {
           path="/atendimento/odontograma"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DENTIST]}>
-              <MedicalRecordsPage />
+              <PlaceholderPage
+                title="Odontograma"
+                description="Mapa dental interativo — condição/procedimento por dente."
+              />
             </ProtectedRoute>
           }
         />
@@ -56,7 +63,10 @@ export function AppRoutes() {
           path="/atendimento/plano-tratamento"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.DENTIST]}>
-              <TreatmentPlansPage />
+              <PlaceholderPage
+                title="Plano de tratamento"
+                description="Orçamento e acompanhamento dos procedimentos previstos. Backend completo e testado — inclusive o consumo automático de material ao concluir um item (GET /treatment-plans, PATCH /treatment-plans/:id/items/:itemId/complete)."
+              />
             </ProtectedRoute>
           }
         />
@@ -65,34 +75,51 @@ export function AppRoutes() {
         <Route
           path="/financeiro/caixa"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
-              <CashFlowPage />
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+              <PlaceholderPage title="Caixa" description="Fluxo de caixa do dia/período." />
             </ProtectedRoute>
           }
         />
         <Route
           path="/financeiro/contas-a-receber"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
-              <ReceivablesPage />
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+              <PlaceholderPage
+                title="Contas a receber"
+                description="Recebíveis por paciente, parcelamentos e inadimplência."
+              />
             </ProtectedRoute>
           }
         />
         <Route
           path="/financeiro/contas-a-pagar"
           element={
-            <ProtectedRoute allowedRoles={[UserRole.ADMIN, UserRole.RECEPTIONIST]}>
-              <PayablesPage />
+            <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+              <PlaceholderPage
+                title="Contas a pagar"
+                description="Despesas e pagamentos a fornecedores."
+              />
             </ProtectedRoute>
           }
         />
 
-        <Route path="/estoque" element={<InventoryPage />} />
+        <Route
+          path="/estoque"
+          element={
+            <PlaceholderPage
+              title="Estoque"
+              description="Materiais, validade e alertas de estoque mínimo. Cada saída gerada automaticamente por um procedimento concluído já vem marcada (GET /inventory/movements — reason começa com 'Consumo automático' e traz o treatmentPlanItemId de origem); falta só esta tela mostrar isso numa tabela."
+            />
+          }
+        />
         <Route
           path="/relatorios"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-              <ReportsPage />
+              <PlaceholderPage
+                title="Relatórios"
+                description="Exportação em PDF/Excel com dados cruzados de faturamento, agenda e estoque."
+              />
             </ProtectedRoute>
           }
         />
@@ -100,7 +127,7 @@ export function AppRoutes() {
           path="/configuracoes"
           element={
             <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
-              <SettingsPage />
+              <PlaceholderPage title="Configurações" description="Dados da clínica, preferências do sistema e usuário." />
             </ProtectedRoute>
           }
         />

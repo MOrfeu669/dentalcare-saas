@@ -54,6 +54,13 @@ export class NotificationsService {
   @OnEvent('appointment.created')
   async handleAppointmentCreated(payload: AppointmentCreatedPayload) {
     const appointment = await this.appointmentsService.findOne(payload.clinicId, payload.appointmentId);
+    if (!appointment.patientId) {
+      // Não deveria acontecer — 'appointment.created' só é emitido para
+      // consultas (que exigem paciente); é uma guarda defensiva porque
+      // Appointment.patientId aceita null (Compromissos não têm paciente).
+      this.logger.warn(`Consulta ${appointment.id} sem paciente — lembrete não agendado.`);
+      return;
+    }
     const patient = await this.patientsService.getBasicInfo(payload.clinicId, appointment.patientId);
 
     const recipient = patient.whatsapp || patient.phone;

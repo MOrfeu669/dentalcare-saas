@@ -1,15 +1,15 @@
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { AuditController } from './controllers/audit.controller';
 import { AuditLog } from './entities/audit-log.entity';
 import { AuditService } from './services/audit.service';
+import { AuditController } from './controllers/audit.controller';
 import { AuditInterceptor } from './interceptors/audit.interceptor';
 
 /**
  * Auditoria: logins, alterações, exclusões, ações dos usuários.
- * Marcado @Global para que o AuditInterceptor possa ser usado por
- * qualquer módulo sem precisar reimportar AuditModule toda vez.
+ * @Global — AuditInterceptor é registrado como APP_INTERCEPTOR, então
+ * é aplicado automaticamente a todos os módulos sem precisar reimportar.
  */
 @Global()
 @Module({
@@ -17,10 +17,7 @@ import { AuditInterceptor } from './interceptors/audit.interceptor';
   controllers: [AuditController],
   providers: [
     AuditService,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: AuditInterceptor,
-    },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
   exports: [AuditService],
 })

@@ -1,14 +1,20 @@
 import { Entity, Column, Index, ManyToOne, JoinColumn } from 'typeorm';
 import { TenantBaseEntity } from '../../../common/base/tenant-base.entity';
 import { AppointmentStatus } from '../interfaces/appointment-status.enum';
+import { AppointmentType } from '../interfaces/appointment-type.enum';
 import { Room } from './room.entity';
 
 @Entity('appointments')
 @Index(['clinicId', 'dentistId', 'startTime'])
 @Index(['clinicId', 'roomId', 'startTime'])
 export class Appointment extends TenantBaseEntity {
-  @Column({ name: 'patient_id', type: 'uuid' })
-  patientId: string;
+  @Column({ type: 'enum', enum: AppointmentType, default: AppointmentType.CONSULTATION })
+  type: AppointmentType;
+
+  // Obrigatório quando type = CONSULTATION; nulo em COMMITMENT (aba
+  // "Compromisso" do modal não tem paciente — reunião, bloqueio de horário etc.)
+  @Column({ name: 'patient_id', type: 'uuid', nullable: true })
+  patientId: string | null;
 
   @Column({ name: 'dentist_id', type: 'uuid' })
   dentistId: string; // referencia users.id (funcionário com role = DENTIST)
@@ -28,6 +34,11 @@ export class Appointment extends TenantBaseEntity {
   @Column({ name: 'treatment_plan_id', type: 'uuid', nullable: true })
   treatmentPlanId: string;
 
+  // Usado só em COMMITMENT — título livre ("Reunião de equipe",
+  // "Bloqueio — almoço"), já que não há paciente pra identificar o evento.
+  @Column({ length: 150, nullable: true })
+  title: string;
+
   @Column({ name: 'start_time', type: 'timestamptz' })
   startTime: Date;
 
@@ -43,6 +54,23 @@ export class Appointment extends TenantBaseEntity {
 
   @Column({ name: 'confirmed_at', type: 'timestamptz', nullable: true })
   confirmedAt: Date;
+
+  // Switch do modal — quando false, AppointmentsService.create() não
+  // emite 'appointment.created', então Notifications nunca agenda o lembrete.
+  @Column({ name: 'auto_confirmation_enabled', default: true })
+  autoConfirmationEnabled: boolean;
+
+  // Rótulo personalizável do modal (ex.: "Urgente", "Retorno") + cor em hex.
+  @Column({ length: 40, nullable: true })
+  label: string;
+
+  @Column({ name: 'label_color', length: 7, nullable: true })
+  labelColor: string;
+
+  // Preenchido quando esta consulta foi criada automaticamente como
+  // retorno de outra (ver AppointmentsService.scheduleReturnIfRequested).
+  @Column({ name: 'return_of_appointment_id', type: 'uuid', nullable: true })
+  returnOfAppointmentId: string;
 
   @Column({ name: 'cancelled_reason', type: 'text', nullable: true })
   cancelledReason: string;

@@ -83,4 +83,55 @@ export class AppointmentConflictCheckerService {
       order: { startTime: 'ASC' },
     });
   }
+
+  /**
+   * "Encontrar horário livre" do modal. Janela padrão 08:00–18:00 —
+   * TODO: trocar pelo expediente real do dentista quando
+   * DentistsService.getWorkingHoursForDay() for conectado aqui (ver
+   * pendência registrada em docs/ARCHITECTURE.md). Não sugere horário
+   * no passado quando a data pesquisada é hoje.
+   */
+  async findAvailableSlots(
+    clinicId: string,
+    dentistId: string,
+    date: Date,
+    durationMinutes: number,
+  ): Promise<{ startTime: Date; endTime: Date }[]> {
+    const dayStart = new Date(date);
+    dayStart.setHours(8, 0, 0, 0);
+    const dayEnd = new Date(date);
+    dayEnd.setHours(18, 0, 0, 0);
+
+    const busy = await this.appointmentRepository.find({
+      where: {
+        clinicId,
+        dentistId,
+        status: Not(AppointmentStatus.CANCELLED),
+        startTime: LessThan(dayEnd),
+        endTime: MoreThan(dayStart),
+      },
+      order: { startTime: 'ASC' },
+    });
+
+    const durationMs = durationMinutes * 60_000;
+    const slots: { startTime: Date; endTime: Date }[] = [];
+    let cursor = new Date(dayStart);
+
+    for (const appt of busy) {
+      while (cursor.getTime() + durationMs <= appt.startTime.getTime()) {
+        slots.push({ startTime: new Date(cursor), endTime: new Date(cursor.getTime() + durationMs) });
+        cursor = new Date(cursor.getTime() + durationMs);
+      }
+      if (appt.endTime.getTime() > cursor.getTime()) {
+        cursor = new Date(appt.endTime);
+      }
+    }
+    while (cursor.getTime() + durationMs <= dayEnd.getTime()) {
+      slots.push({ startTime: new Date(cursor), endTime: new Date(cursor.getTime() + durationMs) });
+      cursor = new Date(cursor.getTime() + durationMs);
+    }
+
+    const now = new Date();
+    return slots.filter((s) => s.startTime > now);
+  }
 }

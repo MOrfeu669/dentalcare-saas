@@ -13,9 +13,7 @@ export class SettingsService {
 
   async getSettings(clinicId: string): Promise<ClinicSettings> {
     const existing = await this.settingsRepository.findOne({ where: { clinicId } });
-    if (existing) {
-      return existing;
-    }
+    if (existing) return existing;
 
     const defaults = this.settingsRepository.create({
       clinicId,
@@ -44,11 +42,14 @@ export class SettingsService {
     if (dto.notificationPreferences) {
       payload.notificationPreferences = {
         appointmentReminders:
-          dto.notificationPreferences.appointmentReminders ?? settings.notificationPreferences.appointmentReminders,
+          dto.notificationPreferences.appointmentReminders ??
+          settings.notificationPreferences.appointmentReminders,
         lowStockAlerts:
-          dto.notificationPreferences.lowStockAlerts ?? settings.notificationPreferences.lowStockAlerts,
+          dto.notificationPreferences.lowStockAlerts ??
+          settings.notificationPreferences.lowStockAlerts,
         paymentAlerts:
-          dto.notificationPreferences.paymentAlerts ?? settings.notificationPreferences.paymentAlerts,
+          dto.notificationPreferences.paymentAlerts ??
+          settings.notificationPreferences.paymentAlerts,
       };
     }
 
