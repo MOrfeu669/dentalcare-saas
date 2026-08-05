@@ -36,7 +36,23 @@ export class PatientsController {
     @Query('limit') limit?: number,
     @Query('search') search?: string,
   ) {
-    return this.patientsService.findAll(user.clinicId, { page, limit }, search);
+    // Query params sempre chegam como string (ou nem chegam). Tipar
+    // como `number` direto no @Query() e confiar em default de
+    // destructuring não funciona aqui: o ValidationPipe global
+    // (transform: true) tenta `Number(undefined)` pra parâmetros
+    // primitivos sem DTO, e isso vira NaN — que não é `undefined`,
+    // então o default `{ page = 1 }` no service nunca disparava.
+    // Convertendo aqui, na borda, com fallback explícito.
+    const parsedPage = parseInt(page ?? '', 10);
+    const parsedLimit = parseInt(limit ?? '', 10);
+    return this.patientsService.findAll(
+      user.clinicId,
+      {
+        page: Number.isFinite(parsedPage) ? parsedPage : undefined,
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+      },
+      search,
+    );
   }
 
   @Get(':id')

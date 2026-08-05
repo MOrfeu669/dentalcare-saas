@@ -3,7 +3,7 @@ import { Modal } from '../common/Modal';
 import { patientsService } from '../../services/patients.service';
 import { dentistsService } from '../../services/dentists.service';
 import { appointmentsService } from '../../services/appointments.service';
-import { AppointmentType, AvailableSlot, Dentist, Patient } from '../../types';
+import { Appointment, AppointmentStatus, AppointmentType, AvailableSlot, Dentist, Patient } from '../../types';
 import './appointment-modal.css';
 
 type DurationOption = 15 | 30 | 45 | 60 | 'custom';
@@ -20,44 +20,70 @@ const LABEL_COLORS = [
 interface AppointmentModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated?: () => void;
-  defaultDate?: string; // yyyy-mm-dd
+  onSaved?: () => void;
+  defaultStart?: Date; // pré-preenche data+hora ao abrir pra criar (clique num slot vazio)
+  appointment?: Appointment | null; // presente = modo edição (clique num evento existente)
+  patientDisplayName?: string;
+  dentistDisplayName?: string;
+}
+
+function toDateInput(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+function toTimeInput(d: Date) {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /**
- * Modal de agendamento. Duas abas que trocam o conteúdo do formulário
- * sem fechar o modal (Consulta ativa por padrão, Compromisso pra
- * bloqueios/reuniões sem paciente) — mapeiam pra
- * POST /appointments com `type: consultation | commitment` no backend.
+ * Modal de agendamento. Duas abas na criação (Consulta ativa por
+ * padrão, Compromisso pra bloqueios/reuniões sem paciente) trocando o
+ * formulário sem fechar o modal. Ao abrir com `appointment` definido,
+ * vira edição — campos de patiente/profissional/tipo não mudam mais
+ * (isso seria cancelar e criar de novo), só o que
+ * UpdateAppointmentDto aceita, mais os atalhos de status.
  */
-export function AppointmentModal({ open, onClose, onCreated, defaultDate }: AppointmentModalProps) {
+export function AppointmentModal({
+  open,
+  onClose,
+  onSaved,
+  defaultStart,
+  appointment,
+  patientDisplayName,
+  dentistDisplayName,
+}: AppointmentModalProps) {
+  const isEditMode = !!appointment;
+
   const [tab, setTab] = useState<AppointmentType>(AppointmentType.CONSULTATION);
 
-  // campos comuns às duas abas
+  // campos comuns às duas abas (criação)
   const [dentists, setDentists] = useState<Dentist[]>([]);
   const [dentistId, setDentistId] = useState('');
-  const [date, setDate] = useState(defaultDate ?? new Date().toISOString().slice(0, 10));
-  const [time, setTime] = useState('09:00');
+  const [date, setDate] = useState(defaultStart ? toDateInput(defaultStart) : new Date().toISOString().slice(0, 10));
+  const [time, setTime] = useState(defaultStart ? toTimeInput(defaultStart) : '09:00');
   const [duration, setDuration] = useState<DurationOption>(30);
   const [customDuration, setCustomDuration] = useState(30);
   const [notes, setNotes] = useState('');
 
-  // aba Consulta
+  // aba Consulta (criação)
   const [patientQuery, setPatientQuery] = useState('');
   const [patientResults, setPatientResults] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [showNewPatientNotice, setShowNewPatientNotice] = useState(false);
   const [autoConfirmation, setAutoConfirmation] = useState(true);
-  const [label, setLabel] = useState('');
-  const [labelColor, setLabelColor] = useState('');
   const [returnOption, setReturnOption] = useState<ReturnOption>('none');
   const [returnSpecificDate, setReturnSpecificDate] = useState('');
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [repeatCount, setRepeatCount] = useState(4);
 
-  // aba Compromisso
+  // rótulo — usado tanto na criação quanto na edição
+  const [label, setLabel] = useState('');
+  const [labelColor, setLabelColor] = useState('');
+
+  // aba Compromisso (criação) / título em edição de Compromisso
   const [title, setTitle] = useState('');
 
-  // "Encontrar horário livre"
+  // "Encontrar horário livre" (só criação)
   const [slots, setSlots] = useState<AvailableSlot[] | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -72,9 +98,18 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
   }, [open]);
 
   useEffect(() => {
-    if (!open) resetForm();
+    if (!open) {
+      resetForm();
+      return;
+    }
+    if (appointment) {
+      setNotes(appointment.notes ?? '');
+      setLabel(appointment.label ?? '');
+      setLabelColor(appointment.labelColor ?? '');
+      setTitle(appointment.title ?? '');
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, appointment]);
 
   // Autocomplete de paciente — busca com um pequeno debounce, só a
   // partir de 2 caracteres pra não gerar request a cada tecla solta.
@@ -92,8 +127,8 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
   function resetForm() {
     setTab(AppointmentType.CONSULTATION);
     setDentistId('');
-    setDate(defaultDate ?? new Date().toISOString().slice(0, 10));
-    setTime('09:00');
+    setDate(defaultStart ? toDateInput(defaultStart) : new Date().toISOString().slice(0, 10));
+    setTime(defaultStart ? toTimeInput(defaultStart) : '09:00');
     setDuration(30);
     setCustomDuration(30);
     setNotes('');
@@ -106,6 +141,8 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
     setLabelColor('');
     setReturnOption('none');
     setReturnSpecificDate('');
+    setRepeatWeekly(false);
+    setRepeatCount(4);
     setTitle('');
     setSlots(null);
     setError(null);
@@ -127,7 +164,7 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
 
   function pickSlot(slot: AvailableSlot) {
     const start = new Date(slot.startTime);
-    setTime(`${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`);
+    setTime(toTimeInput(start));
     setSlots(null);
   }
 
@@ -137,7 +174,7 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
     return { startTime: startTime.toISOString(), endTime: endTime.toISOString() };
   }
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleCreateSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -179,14 +216,166 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
               ? { specificDate: returnSpecificDate }
               : { days: returnOption }
             : undefined,
+        recurrence:
+          tab === AppointmentType.CONSULTATION && repeatWeekly
+            ? { frequency: 'weekly', count: repeatCount }
+            : undefined,
       });
-      onCreated?.();
+      onSaved?.();
       onClose();
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Não foi possível salvar o agendamento.');
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleEditSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!appointment) return;
+    setError(null);
+    setSaving(true);
+    try {
+      await appointmentsService.update(appointment.id, {
+        notes: notes || undefined,
+        label: label || undefined,
+        labelColor: labelColor || undefined,
+        title: appointment.type === AppointmentType.COMMITMENT ? title : undefined,
+      });
+      onSaved?.();
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Não foi possível salvar as alterações.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleQuickAction(action: 'confirm' | 'complete' | 'cancel') {
+    if (!appointment) return;
+    setSaving(true);
+    setError(null);
+    try {
+      if (action === 'confirm') await appointmentsService.confirm(appointment.id);
+      if (action === 'complete') await appointmentsService.complete(appointment.id);
+      if (action === 'cancel') {
+        const reason = window.prompt('Motivo do cancelamento:') ?? '';
+        await appointmentsService.cancel(appointment.id, reason);
+      }
+      onSaved?.();
+      onClose();
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? 'Não foi possível concluir a ação.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (isEditMode && appointment) {
+    const start = new Date(appointment.startTime);
+    const end = new Date(appointment.endTime);
+    const isCommitment = appointment.type === AppointmentType.COMMITMENT;
+
+    return (
+      <Modal
+        open={open}
+        onClose={onClose}
+        title={isCommitment ? 'Editar compromisso' : 'Editar consulta'}
+        widthPx={480}
+        footer={
+          <>
+            {appointment.status !== AppointmentStatus.CANCELLED && (
+              <button
+                type="button"
+                className="btn-secondary appt-danger-link"
+                onClick={() => handleQuickAction('cancel')}
+                disabled={saving}
+              >
+                Cancelar consulta
+              </button>
+            )}
+            {!isCommitment && appointment.status === AppointmentStatus.SCHEDULED && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => handleQuickAction('confirm')}
+                disabled={saving}
+              >
+                Confirmar
+              </button>
+            )}
+            {appointment.status !== AppointmentStatus.COMPLETED &&
+              appointment.status !== AppointmentStatus.CANCELLED && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => handleQuickAction('complete')}
+                  disabled={saving}
+                >
+                  Concluir
+                </button>
+              )}
+            <button type="submit" form="appointment-edit-form" className="btn-primary" disabled={saving}>
+              {saving ? 'Salvando…' : 'Salvar alterações'}
+            </button>
+          </>
+        }
+      >
+        <div className="appt-edit-summary">
+          <strong>{isCommitment ? appointment.title : (patientDisplayName ?? 'Paciente')}</strong>
+          <span>{dentistDisplayName ?? 'Profissional'}</span>
+          <span className="mono">
+            {start.toLocaleDateString('pt-BR')} · {toTimeInput(start)}–{toTimeInput(end)}
+          </span>
+          <span className={`appt-status-badge appt-status-${appointment.status}`}>{appointment.status}</span>
+        </div>
+
+        <form id="appointment-edit-form" onSubmit={handleEditSubmit} className="appt-form">
+          {isCommitment && (
+            <>
+              <label htmlFor="apptEditTitle">Título</label>
+              <input id="apptEditTitle" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            </>
+          )}
+
+          <label htmlFor="apptEditNotes">Observações</label>
+          <textarea
+            id="apptEditNotes"
+            maxLength={500}
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+          <span className="appt-char-count">{notes.length}/500</span>
+
+          <p className="appt-section-title">Rótulo</p>
+          <input
+            placeholder="Ex.: Urgente, Retorno, Convênio…"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={40}
+          />
+          <div className="appt-label-colors">
+            {LABEL_COLORS.map((c) => (
+              <button
+                type="button"
+                key={c.hex}
+                className={`appt-color-swatch${labelColor === c.hex ? ' selected' : ''}`}
+                style={{ background: c.hex }}
+                title={c.name}
+                onClick={() => setLabelColor(c.hex)}
+              />
+            ))}
+          </div>
+
+          {error && (
+            <p className="appt-error" role="alert">
+              {error}
+            </p>
+          )}
+        </form>
+      </Modal>
+    );
   }
 
   return (
@@ -227,7 +416,7 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
         </button>
       </div>
 
-      <form id="appointment-form" onSubmit={handleSubmit} className="appt-form">
+      <form id="appointment-form" onSubmit={handleCreateSubmit} className="appt-form">
         {tab === AppointmentType.CONSULTATION ? (
           <>
             <label>Paciente</label>
@@ -370,9 +559,7 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
             ) : (
               slots.slice(0, 12).map((s) => {
                 const start = new Date(s.startTime);
-                const slotLabel = `${String(start.getHours()).padStart(2, '0')}:${String(
-                  start.getMinutes(),
-                ).padStart(2, '0')}`;
+                const slotLabel = toTimeInput(start);
                 return (
                   <button
                     type="button"
@@ -400,6 +587,36 @@ export function AppointmentModal({ open, onClose, onCreated, defaultDate }: Appo
 
         {tab === AppointmentType.CONSULTATION && (
           <>
+            <p className="appt-section-title">Repetir</p>
+            <div className="appt-switch-row">
+              <span>Repetir semanalmente</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={repeatWeekly}
+                className={`appt-switch${repeatWeekly ? ' on' : ''}`}
+                onClick={() => setRepeatWeekly((v) => !v)}
+              >
+                <span className="appt-switch-knob" />
+              </button>
+            </div>
+            {repeatWeekly && (
+              <div className="appt-row" style={{ marginTop: 8 }}>
+                <label htmlFor="apptRepeatCount" style={{ margin: 0, alignSelf: 'center' }}>
+                  Por quantas semanas:
+                </label>
+                <input
+                  id="apptRepeatCount"
+                  type="number"
+                  min={2}
+                  max={52}
+                  value={repeatCount}
+                  onChange={(e) => setRepeatCount(Number(e.target.value))}
+                  className="appt-row-field"
+                />
+              </div>
+            )}
+
             <p className="appt-section-title">Retorno</p>
             <div className="appt-return-options">
               {(['none', 7, 15, 30, 'specific'] as ReturnOption[]).map((opt) => (

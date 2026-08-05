@@ -57,6 +57,15 @@ export interface Appointment {
   returnOfAppointmentId?: string;
   notes?: string;
 }
+
+export interface UpdateAppointmentPayload {
+  procedureId?: string;
+  roomId?: string;
+  notes?: string;
+  label?: string;
+  labelColor?: string;
+  title?: string;
+}
 export interface Material {
   id: string;
   name: string;
@@ -80,7 +89,6 @@ export interface TreatmentPlan {
   items: TreatmentPlanItem[];
   totalEstimatedValue: number;
 }
-
 export interface MedicalRecordSummary {
   patient: { id: string; name: string; birthDate: string };
   anamnesis: unknown;
@@ -107,6 +115,7 @@ export interface CreateAppointmentPayload {
   label?: string;
   labelColor?: string;
   returnSchedule?: ReturnSchedule;
+  recurrence?: RecurrencePayload;
 }
 
 export interface AvailableSlot {
@@ -118,6 +127,23 @@ export interface Dentist {
   id: string; // id do DentistProfile (não confundir com user.id, usado como dentistId nas consultas)
   user: { id: string; name: string };
   specialties: string[];
+  agendaColor: string;
+}
+
+export interface RecurrencePayload {
+  frequency: 'weekly';
+  count: number;
+}
+
+export interface BusinessHoursDay {
+  open: string;
+  close: string;
+}
+
+export interface Clinic {
+  id: string;
+  name: string;
+  businessHours?: Record<string, BusinessHoursDay[]>;
 }
 
 export interface PaginatedResult<T> {

@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { AppointmentType } from '../interfaces/appointment-type.enum';
 import { ReturnScheduleDto } from './return-schedule.dto';
+import { RecurrenceDto } from './recurrence.dto';
 
 export class CreateAppointmentDto {
   @IsOptional()
@@ -77,4 +78,11 @@ export class CreateAppointmentDto {
   @ValidateNested()
   @Type(() => ReturnScheduleDto)
   returnSchedule?: ReturnScheduleDto;
+
+  // "Eventos recorrentes" — se presente, gera as ocorrências seguintes
+  // já na criação (ver AppointmentsService.createRecurringSeries).
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RecurrenceDto)
+  recurrence?: RecurrenceDto;
 }

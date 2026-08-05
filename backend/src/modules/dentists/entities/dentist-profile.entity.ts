@@ -41,4 +41,9 @@ export class DentistProfile extends TenantBaseEntity {
 
   @Column({ type: 'text', nullable: true })
   bio: string;
+
+  // Cor padrão dos blocos deste dentista na agenda (hex). Cada
+  // dentista define a própria — requisito explícito da tela de agenda.
+  @Column({ name: 'agenda_color', length: 7, default: '#0F5E5A' })
+  agendaColor: string;
 }

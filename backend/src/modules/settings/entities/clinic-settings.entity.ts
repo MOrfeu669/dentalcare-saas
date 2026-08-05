@@ -2,7 +2,7 @@ import { Column, Entity, Index } from 'typeorm';
 import { TenantBaseEntity } from '../../../common/base/tenant-base.entity';
 
 @Entity('clinic_settings')
-@Index(['clinicId'], { unique: true })
+@Index('IDX_clinic_settings_clinic_id', ['clinicId'], { unique: true })
 export class ClinicSettings extends TenantBaseEntity {
   @Column({ default: 'default' })
   theme: string;

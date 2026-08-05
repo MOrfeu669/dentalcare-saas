@@ -87,9 +87,60 @@ Dois mecanismos, escolhidos por caso:
 
 `AppointmentConflictCheckerService` centraliza a regra de não permitir
 dois atendimentos sobrepostos para o mesmo dentista **ou** para a
-mesma sala. Isolado do `AppointmentsService` de propósito, para poder
-ser reutilizado depois em "sugestão de horários livres" sem duplicar a
-lógica de sobreposição de intervalos.
+mesma sala. Isolado do `AppointmentsService` de propósito — é o mesmo
+service que hoje também resolve `findAvailableSlots()` (usado pelo
+botão "Encontrar horário livre" do modal), sem duplicar a lógica de
+sobreposição de intervalos.
+
+### Modal de agendamento (Consulta / Compromisso)
+
+`Appointment` ganhou um campo `type` (`consultation` | `commitment`) e
+`patientId` virou nullable — Compromisso (reunião, bloqueio de agenda)
+não tem paciente, só `title`. As duas abas do modal
+(`components/scheduling/AppointmentModal.tsx`) batem no mesmo
+`POST /appointments`, só variando o payload; a validação condicional
+(`ValidateIf`) no `CreateAppointmentDto` garante que `patientId` é
+obrigatório em Consulta e `title` em Compromisso, nunca os dois.
+
+- **Confirmação automática** (switch do modal) vira
+  `autoConfirmationEnabled` na entidade. `AppointmentsService.create()`
+  só emite `appointment.created` (o evento que o `NotificationsModule`
+  escuta pra agendar o lembrete) quando é Consulta **e** o switch está
+  ligado — Compromisso nunca dispara notificação, já que não tem
+  paciente pra notificar.
+- **Retorno** (7/15/30 dias ou data específica) — `AppointmentsService`
+  cria uma segunda consulta automaticamente após salvar a original
+  (mesmo paciente/dentista/duração, só a data muda), com
+  `label: "Retorno"` pré-preenchido. Falha isolada por `try/catch`: se
+  der conflito de horário no dia do retorno, não derruba a consulta
+  original — só fica um aviso no log (mesmo padrão do consumo
+  automático de estoque).
+- **Rótulo** — `label` (texto livre) + `labelColor` (hex) na entidade;
+  o modal oferece 5 cores predefinidas, mas aceita qualquer hex válido
+  (`@IsHexColor()` no DTO).
+- **"Encontrar horário livre"** (`GET /appointments/available-slots`) —
+  janela fixa 08:00–18:00 por enquanto (TODO: usar
+  `DentistsService.getWorkingHoursForDay()`, ainda não conectado aqui),
+  não sugere horário no passado quando a data é hoje.
+- **"Cadastrar paciente"** dentro do modal foi deixado como aviso
+  inline de propósito ("cadastre em Pacientes → Cadastro e volte") —
+  o enunciado original já dizia que esse cadastro rápido "será
+  definido posteriormente"; não fazia sentido inventar um modal de
+  cadastro paralelo ao que já existe em `PatientsPage`.
+
+Testado de ponta a ponta: Compromisso sem paciente, Consulta com
+rótulo/cor/confirmação desligada/retorno em 7 dias, as duas validações
+condicionais (`400` nos dois sentidos), o retorno automático aparecendo
+no dia certo, e os horários ocupados corretamente excluídos de
+`available-slots`.
+
+**Bug de segurança encontrado e corrigido nesta etapa**: `GET /dentists`
+vazava `User.passwordHash` (o hash bcrypt) dentro do relacionamento
+`user`, pra qualquer admin/recepcionista/dentista autenticado — a
+query usava `relations: ['user']` sem restringir campos.
+`DentistsService.findAll()`/`findByUserId()` agora usam `select`
+explícito na relação, então só os campos necessários (`id`, `name`,
+`email`, `role`, `professionalLicense`, `active`) saem da API.
 
 ## Financeiro integrado — cadeia de eventos (Treatment Plans → Financial → Payments)
 
@@ -280,45 +331,74 @@ requisição.
 
 ## Frontend (SPA)
 
-Decisões de navegação e estrutura definidas para o front-end:
+Decisões de navegação definidas para o front-end:
 
-- **Sidebar fixa, dois níveis, sub-itens sempre visíveis** — a navegação
-  está centralizada em `AppShell.tsx` com os principais módulos do
-  sistema: Dashboard, Agenda, Pacientes, Atendimento, Financeiro,
-  Estoque, Relatórios e Configurações.
-- **Drawer para ações rápidas** — a tela de pacientes usa um drawer para
-  cadastro inline, sem interromper o fluxo de listagem.
-- **Evitar perda de posição** — o `<main>` do shell remonta com base na
-  rota atual, preservando o contexto da tela quando um drawer é aberto
-  ou fechado.
-- **Login/Cadastro** — a tela de autenticação já suporta os fluxos de
-  login e onboarding de clínica/dentista/funcionário.
-- **Páginas reais conectadas ao backend** — a implementação já incluiu
-  telas práticas para Agenda, Prontuário, Planos de tratamento, Estoque,
-  Caixa, Contas a receber, Contas a pagar, Relatórios e Configurações,
-  todas consumindo os endpoints do backend.
+- **Sidebar fixa, dois níveis, sub-itens sempre visíveis** — nada de
+  acordeão escondendo funcionalidade atrás de um clique extra. O mapa
+  completo está em `AppShell.tsx` (`NAV_ITEMS`): Dashboard, Agenda,
+  Pacientes (Lista/Cadastro), Atendimento (Prontuário/Odontograma/Plano
+  de tratamento), Financeiro (Caixa/Contas a receber/Contas a pagar),
+  Estoque, Relatórios, Configurações.
+- **Drawer em vez de navegação completa** quando a ação é rápida e a
+  pessoa não deveria perder onde estava — ex.: cadastrar paciente sem
+  sair da lista. Componente genérico em `components/common/Drawer.tsx`,
+  usado como referência em `pages/Patients/PatientsPage.tsx` (Lista +
+  Drawer de Cadastro na mesma tela, aberto via `?novo=1` — assim
+  sobrevive a um refresh e o link do menu "Pacientes → Cadastro" pode
+  apontar direto pra essa URL).
+- **Evitar perda de posição**: o `<main>` do `AppShell` usa
+  `key={location.pathname}` pra remontar só quando a *rota* muda, não
+  quando um Drawer abre/fecha via query param — o Drawer é uma camada
+  por cima, a tela de trás não perde filtro/scroll.
+- **Login/Cadastro**: `LoginPage.tsx` tem duas abas — "Entrar" (form
+  genérico de e-mail/senha, igual pra qualquer perfil) e "Criar conta",
+  que por sua vez tem 3 chips (Clínica / Dentista / Funcionário) com
+  formulários diferentes, cada um batendo no endpoint certo
+  (`/auth/register/clinic` ou `/auth/register/staff`) — ver
+  `docs/ARCHITECTURE.md` → Autenticação → Cadastro (onboarding) pra
+  como isso mapeia no banco. Os três fluxos já logam automaticamente
+  ao final.
+- **Dashboard**: o backend (`GET /dashboard/summary`) já está
+  implementado com os 8 cards definidos pelo usuário e o frontend
+  `DashboardPage.tsx` consome o endpoint real. A tela está integrada ao
+  backend, embora a interface possa ser refinada.
+- **Agenda**: lista simples foi **substituída** pelo grid visual
+  estilo Google Calendar — sidebar (botão "+", seletor de profissional
+  com a cor de cada um), barra superior (navegação semana/dia, mini
+  calendário, dropdown Dia/Semana, filtros), grade de colunas com
+  linhas de 15 minutos, eventos coloridos arrastáveis (mover) e
+  redimensionáveis (alça no rodapé). `AppointmentModal` ganhou um modo
+  de edição (clicar num evento existente), além do de criação.
 
-### Estado atual do frontend
+  **Simplificações deliberadas nesta etapa** (documentadas, não
+  escondidas):
+  - **Recorrência** — só semanal, com número fixo de repetições
+    (`RecurrenceDto`), materializada como N linhas reais na criação,
+    não uma RRULE expandida sob demanda. Cobre o caso mais comum
+    (consulta semanal) sem a complexidade de exceções/edição em massa
+    de uma série inteira.
+  - **"Encaixe"** — hoje é literalmente o mesmo fluxo do botão "+";
+    não existe um conceito de fila de encaixe separado no backend.
+  - **Horário de atendimento** — usa `Clinic.businessHours` (já
+    existia desde o início do projeto); dia da semana ausente da
+    configuração é tratado como fechado. Achei e corrigi um bug aqui:
+    a lógica original fazia o oposto — dia sem configuração aparecia
+    como "disponível" em vez de bloqueado.
+  - **Cor por dentista** — `DentistProfile.agendaColor`, usada como
+    cor padrão do bloco; o rótulo (`label`/`labelColor`) da consulta,
+    quando definido, tem prioridade sobre a cor do profissional.
 
-O frontend já saiu do estágio de placeholders em boa parte das áreas
-principais. A navegação está funcional e as telas principais já fazem
-requisições reais à API, incluindo Dashboard, Agenda, Prontuário,
-Planos de tratamento, Estoque, Financeiro, Relatórios e Configurações.
+Páginas reais (consomem a API de verdade): Login/Cadastro, Pacientes,
+Agenda (grid completo). Dashboard consome dados mockados (backend
+pronto, front pendente). As demais (Atendimento/\*, Financeiro/\*,
+Estoque, Relatórios, Configurações) são `PlaceholderPage` — a rota e a
+proteção por role já existem, falta só trocar pelo componente real.
 
-### O que ainda falta no frontend
+## O que falta (por módulo)
 
-- Refinar as telas com tabelas, filtros e traduções visuais mais
-  cuidadas.
-- Melhorar os estados de carregamento e erro em páginas que ainda têm
-  uma camada mais simples de apresentação.
-- Completar a camada de Settings/Audit com dados reais e interação mais
-  completa.
-
-## O que foi implementado
-
-A implementação de negócio do escopo original já está consolidada e
-funcional. Os módulos principais foram entregues com integração real ao
-backend e, em boa parte do frontend, com telas já consumindo a API:
+Cada stub em `backend/src/modules/*/*.module.ts` tem comentários
+`// TODO` descrevendo exatamente as entidades e regras a implementar,
+na ordem sugerida de dependência:
 
 1. ~~Dentists (perfil profissional) e Rooms (CRUD simples)~~ ✅ feito e testado.
 2. ~~Procedures (catálogo) → Treatment Plans (services/controller)~~ ✅ feito e testado.
@@ -327,44 +407,36 @@ backend e, em boa parte do frontend, com telas já consumindo a API:
    completa: concluir item de plano → nasce conta a receber sozinha →
    pagamento parcial → pagamento total → status `paid`.
 5. ~~Notifications (WhatsApp/SMS/e-mail)~~ ✅ feito e testado — envio real
-   fica atrás de um provider plugável (hoje só "log-only").
+   fica atrás de um provider plugável (hoje só "log-only", ver seção abaixo).
 6. ~~Dashboard e Reports~~ ✅ feito e testado — todos os 8 cards do
-   Dashboard e os 5 relatórios foram implementados com dados reais.
+   Dashboard e os 5 relatórios (Financeiro, Agenda, Estoque, Pacientes,
+   Procedimentos) validados com dados reais.
 
-## O que ainda falta
+Todos os módulos de negócio do escopo original estão implementados.
+Os módulos transversais de backend de **Settings** e **Audit** já
+existem e estão operacionais; restam refinamentos de interface e
+relatórios/auditoria adicionais.
 
-O sistema já está com uma base sólida, mas ainda há melhorias de
-produto, operacionalidade e maturidade técnica:
+Pendências abertas:
+- Ao criar uma consulta vinculada a um item do plano (`Appointment.treatmentPlanId`),
+  ninguém ainda marca o item como `SCHEDULED` automaticamente.
+- `getWorkingHoursForDay()` (Dentists) ainda não é consultado pelo
+  `AppointmentConflictCheckerService`.
+- `NOTIFICATION_SENDER` está registrado como `ConsoleNotificationSender`
+  (só loga) — trocar por uma implementação real de WhatsApp Business
+  API / SMTP quando houver credenciais é a única mudança necessária.
+- `ReportsController` retorna JSON; exportação real para PDF/Excel
+  ainda não foi implementada (ver TODO no próprio controller).
+- Itens de plano de tratamento concluídos **antes** da entidade ganhar
+  o campo `completedAt` (ver seção Dashboard/Reports abaixo) não
+  aparecem em `findItemsCompletedInRange` — é uma lacuna de dado
+  histórico do ambiente de desenvolvimento, não do código.
 
-- Implementar o fluxo de convite/aprovação para dentistas e
-  recepcionistas, em vez de depender apenas do CNPJ.
-- Trocar o sender de notificações por uma implementação real quando
-  houver credenciais externas.
-- Implementar exportação de relatórios para PDF/Excel.
-- Completar módulos transversais de Settings e Audit.
-
-## Pendências abertas
-
-- `TreatmentPlansService.completeItem` já emite o evento de conclusão,
-  mas a automação de consumo de estoque por procedimento ainda depende
-  da receita `ProcedureMaterial` estar completamente integrada ao fluxo.
-- Ao criar uma consulta ligada a um item do plano, o item ainda não é
-  marcado automaticamente como `SCHEDULED`.
-- `getWorkingHoursForDay()` do módulo de dentistas ainda não é
-  consultado pelo `AppointmentConflictCheckerService`.
-- `NOTIFICATION_SENDER` segue com `ConsoleNotificationSender`; isso é
-  suficiente para desenvolvimento, mas não para produção.
-- `ReportsController` ainda retorna JSON; a exportação para PDF/Excel
-  é uma camada posterior à agregação.
-- Itens de plano concluídos antes da adição do campo `completedAt`
-  podem não aparecer em relatórios agregados por data histórica.
-
-## Sugestão do próximo passo
-
-O próximo passo mais valioso é evoluir a aplicação em direção a uma
-experiência mais madura e próxima de uso real: polir as telas do
-frontend, fechar as pendências de notificações e relatórios e, em
-seguida, completar Settings/Audit para uma versão mais profissional.
+Pendência aberta em Dentists: `getWorkingHoursForDay()` já existe no
+service mas ainda não é consultado pelo
+`AppointmentConflictCheckerService` — hoje a agenda bloqueia
+sobreposição de horário, mas ainda aceita agendar fora do expediente
+do profissional.
 
 ## Banco de dados
 
@@ -388,6 +460,23 @@ npm run migration:generate -- src/database/migrations/NomeDaMudanca
 npm run migration:run
 ```
 
+**Cuidado ao escrever migration manualmente** (em vez de gerar via
+CLI): se a entidade declara um índice com `@Index(['coluna'])` (sem
+nome explícito) e você criar esse índice na migration com um nome
+próprio (ex.: `IDX_clinica_settings_clinic_id`), o TypeORM computa um
+nome hash pra esse índice a partir da entidade — diferente do nome que
+você escolheu. Toda vez que rodar `migration:generate` depois disso,
+ele vai insistir em "corrigir" essa diferença (dropar o seu e criar um
+com o nome hash), e se sua migration original também tiver deixado um
+índice duplicado por engano, o `CREATE INDEX` pode colidir por nome e
+falhar ao rodar. Isso aconteceu de verdade neste projeto (migrations
+de `Settings`/`Audit`) e ficou se repetindo em migrations seguintes
+até a causa raiz ser corrigida: nomear o índice explicitamente na
+entidade também — `@Index('IDX_nome_escolhido', ['coluna'], {...})` —
+pra ele bater com o nome já aplicado no banco. Depois disso,
+`migration:generate` volta a reportar "No changes in database schema
+were found" quando não há mudança real.
+
 ## Seeds (dados de exemplo)
 
 `backend/src/database/seeds/run-seeds.ts` — **testado de ponta a
@@ -396,6 +485,7 @@ cada entidade é checada por sua chave natural antes de inserir: CNPJ,
 e-mail, nome da sala, CPF).
 
 Popula 1 clínica, 4 usuários (1 admin, 2 dentistas, 1 recepcionista),
+
 3 salas e 3 pacientes. Os dados ficam em `seed-data.ts`, separados da
 lógica de inserção, para facilitar editar/adicionar registros sem
 mexer no script.

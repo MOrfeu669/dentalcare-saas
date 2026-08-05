@@ -35,16 +35,17 @@ Algumas pendências importantes continuam abertas:
 - Trocar o sender de notificações real por um provedor externo
   (WhatsApp/SMS/SMTP) quando houver credenciais.
 - Implementar exportação de relatórios para PDF/Excel.
-- Completar módulos transversais de Settings e Audit.
+- Refinar a interface de Configurações no frontend e ampliar as
+  visualizações/relatórios de auditoria.
 - Refinar a experiência do frontend com tabelas, filtros e melhor
   usabilidade nas telas já conectadas.
 
 ## Pendências abertas
 
-- `TreatmentPlansService.completeItem()` já dispara o evento de
-  conclusão, mas a automação de consumo de estoque por procedimento
-  ainda depende da receita `ProcedureMaterial` estar plenamente ligada
-  ao fluxo.
+- A automação de consumo de estoque por procedimento já está
+  implementada via `ProcedureConsumptionService` e consome materiais
+  automaticamente quando a receita `ProcedureMaterial` existe;
+  procedimentos sem receita cadastrada não geram consumo.
 - A agenda ainda não usa `getWorkingHoursForDay()` do dentista como
   regra de bloqueio adicional.
 - Itens de plano concluídos em dados antigos podem não aparecer em
@@ -103,9 +104,10 @@ projeto. **Todos os módulos de negócio do escopo original estão
 implementados e testados de ponta a ponta** (API real + Postgres
 real): Auth, Users, Clinics, Patients, Appointments (+ Rooms),
 Dentists, Procedures, Treatment Plans, Medical Records, Inventory,
-Financial, Payments, Notifications, Dashboard e Reports. Restam
-**Settings** e **Audit** — transversais, baixa prioridade funcional,
-ainda *stubs* com `// TODO`.
+Financial, Payments, Notifications, Dashboard e Reports. Os
+módulos transversais de **Settings** e **Audit** também estão
+implementados no backend; restam principalmente refinamentos de
+interface e relatórios.
 
 ## Pré-requisitos
 
@@ -189,3 +191,4 @@ config (`test/jest-e2e.json`), então não precisam estar dentro de
 4. Completar `Settings` e `Audit`.
 5. Polir o frontend com componentes mais completos nas telas de
    agenda, financeiro, estoque e relatórios.
+  

@@ -4,6 +4,7 @@ import { Between, In, MoreThan, Not, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Appointment } from '../entities/appointment.entity';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
+import { UpdateAppointmentDto } from '../dto/update-appointment.dto';
 import { AppointmentConflictCheckerService } from './appointment-conflict-checker.service';
 import { AppointmentStatus } from '../interfaces/appointment-status.enum';
 import { AppointmentType } from '../interfaces/appointment-type.enum';
@@ -22,7 +23,7 @@ export class AppointmentsService {
   async create(clinicId: string, dto: CreateAppointmentDto): Promise<Appointment> {
     const startTime = new Date(dto.startTime);
     const endTime = new Date(dto.endTime);
-    const { returnSchedule, ...appointmentFields } = dto;
+    const { returnSchedule, recurrence, ...appointmentFields } = dto;
 
     await this.conflictChecker.assertNoConflict({
       clinicId,
@@ -53,7 +54,76 @@ export class AppointmentsService {
       await this.scheduleReturnIfRequested(clinicId, saved, returnSchedule);
     }
 
+    if (recurrence) {
+      await this.createRecurringSeries(clinicId, saved, recurrence);
+    }
+
     return saved;
+  }
+
+  /**
+   * "Eventos recorrentes" do modal — gera as N-1 ocorrências seguintes
+   * (a primeira já foi salva em create()) já materializadas como
+   * linhas reais, todas com o mesmo `recurrenceGroupId` (= id da
+   * primeira). Simplificado: só semanal, sem exceções — ver nota na
+   * entidade. Cada ocorrência passa pela checagem de conflito
+   * normalmente; se uma semana específica bater com outra consulta já
+   * marcada, só aquela ocorrência é pulada (aviso no log), as outras
+   * continuam sendo criadas.
+   */
+  private async createRecurringSeries(
+    clinicId: string,
+    first: Appointment,
+    recurrence: NonNullable<CreateAppointmentDto['recurrence']>,
+  ): Promise<void> {
+    await this.appointmentRepository.update(first.id, { recurrenceGroupId: first.id });
+
+    const durationMs = first.endTime.getTime() - first.startTime.getTime();
+
+    for (let i = 1; i < recurrence.count; i++) {
+      const occurrenceStart = new Date(first.startTime);
+      occurrenceStart.setDate(occurrenceStart.getDate() + i * 7);
+      const occurrenceEnd = new Date(occurrenceStart.getTime() + durationMs);
+
+      try {
+        await this.conflictChecker.assertNoConflict({
+          clinicId,
+          dentistId: first.dentistId,
+          roomId: first.roomId,
+          startTime: occurrenceStart,
+          endTime: occurrenceEnd,
+        });
+
+        const occurrence = this.appointmentRepository.create({
+          type: first.type,
+          patientId: first.patientId,
+          dentistId: first.dentistId,
+          roomId: first.roomId,
+          procedureId: first.procedureId,
+          title: first.title,
+          startTime: occurrenceStart,
+          endTime: occurrenceEnd,
+          notes: first.notes,
+          label: first.label,
+          labelColor: first.labelColor,
+          autoConfirmationEnabled: first.autoConfirmationEnabled,
+          recurrenceGroupId: first.id,
+          clinicId,
+        });
+        const savedOccurrence = await this.appointmentRepository.save(occurrence);
+
+        if (first.type === AppointmentType.CONSULTATION && first.autoConfirmationEnabled) {
+          this.eventEmitter.emit('appointment.created', {
+            appointmentId: savedOccurrence.id,
+            clinicId,
+          });
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Ocorrência ${i + 1}/${recurrence.count} da série recorrente ${first.id} pulada — ${(error as Error).message}`,
+        );
+      }
+    }
   }
 
   /**
@@ -217,14 +287,25 @@ export class AppointmentsService {
     return appointment;
   }
 
+  /** Edição de campos mutáveis (não mexe em horário/tipo/paciente — ver UpdateAppointmentDto). */
+  async update(clinicId: string, id: string, dto: UpdateAppointmentDto) {
+    await this.findOne(clinicId, id);
+    await this.appointmentRepository.update({ id, clinicId }, dto);
+    return this.findOne(clinicId, id);
+  }
+
   getDaySchedule(clinicId: string, date: Date) {
     return this.conflictChecker.findDaySchedule(clinicId, date);
   }
 
-  /** Usado pelo relatório de Agenda (contagem por status, por profissional). */
-  findInRange(clinicId: string, from: Date, to: Date): Promise<Appointment[]> {
+  /**
+   * Usado pela grade da Agenda (semana/dia) e pelo relatório de Agenda.
+   * `dentistId` opcional — "seletor de agenda" filtrando por profissional.
+   */
+  findInRange(clinicId: string, from: Date, to: Date, dentistId?: string): Promise<Appointment[]> {
     return this.appointmentRepository.find({
-      where: { clinicId, startTime: Between(from, to) },
+      where: { clinicId, startTime: Between(from, to), ...(dentistId ? { dentistId } : {}) },
+      relations: ['room'],
       order: { startTime: 'ASC' },
     });
   }

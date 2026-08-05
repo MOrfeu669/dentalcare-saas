@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AppointmentsService } from '../services/appointments.service';
 import { CreateAppointmentDto } from '../dto/create-appointment.dto';
+import { UpdateAppointmentDto } from '../dto/update-appointment.dto';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { AuthenticatedUser, UserRole } from '../../../common/interfaces/user-role.enum';
@@ -16,6 +17,17 @@ export class AppointmentsController {
   @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DENTIST)
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateAppointmentDto) {
     return this.appointmentsService.create(user.clinicId, dto);
+  }
+
+  @Get()
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DENTIST)
+  findInRange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('dentistId') dentistId?: string,
+  ) {
+    return this.appointmentsService.findInRange(user.clinicId, new Date(from), new Date(to), dentistId);
   }
 
   @Get('day')
@@ -38,6 +50,16 @@ export class AppointmentsController {
       new Date(date),
       parseInt(durationMinutes, 10) || 30,
     );
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DENTIST)
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateAppointmentDto,
+  ) {
+    return this.appointmentsService.update(user.clinicId, id, dto);
   }
 
   @Patch(':id/reschedule')

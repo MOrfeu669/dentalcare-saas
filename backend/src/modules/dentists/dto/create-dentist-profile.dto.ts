@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
+  IsHexColor,
   IsNumber,
   IsOptional,
   IsString,
@@ -51,4 +52,10 @@ export class CreateDentistProfileDto {
   @IsOptional()
   @IsString()
   bio?: string;
+
+  // Cor dos blocos deste dentista na agenda (hex) — "as cores podem ser
+  // definidas por cada dentista".
+  @IsOptional()
+  @IsHexColor()
+  agendaColor?: string;
 }

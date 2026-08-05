@@ -27,9 +27,15 @@ export class PatientsService {
 
   async findAll(
     clinicId: string,
-    { page = 1, limit = 20 }: PaginationParams,
+    { page, limit }: PaginationParams,
     search?: string,
   ): Promise<PaginatedResult<Patient>> {
+    // Nunca confia cegamente em page/limit vindos de fora — já vimos
+    // esse valor chegar como NaN em vez de undefined (ver comentário
+    // no controller). Number.isFinite rejeita NaN, Infinity e não-números.
+    const safePage = Number.isFinite(page) && (page as number) > 0 ? (page as number) : 1;
+    const safeLimit = Number.isFinite(limit) && (limit as number) > 0 ? (limit as number) : 20;
+
     const [data, total] = await this.patientRepository.findAndCount({
       where: {
         clinicId,
@@ -37,13 +43,13 @@ export class PatientsService {
         ...(search ? { name: ILike(`%${search}%`) } : {}),
       },
       order: { name: 'ASC' },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
     });
 
     return {
       data,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      meta: { total, page: safePage, limit: safeLimit, totalPages: Math.ceil(total / safeLimit) },
     };
   }
 

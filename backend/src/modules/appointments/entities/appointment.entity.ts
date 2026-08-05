@@ -72,6 +72,14 @@ export class Appointment extends TenantBaseEntity {
   @Column({ name: 'return_of_appointment_id', type: 'uuid', nullable: true })
   returnOfAppointmentId: string;
 
+  // Todas as ocorrências de uma mesma série recorrente compartilham o
+  // mesmo valor aqui (ver AppointmentsService.createRecurringSeries).
+  // Simplificado de propósito: gera N linhas reais na criação, não
+  // uma RRULE expandida sob demanda — mais simples de checar conflito
+  // e de editar/cancelar uma ocorrência isolada sem afetar as outras.
+  @Column({ name: 'recurrence_group_id', type: 'uuid', nullable: true })
+  recurrenceGroupId: string;
+
   @Column({ name: 'cancelled_reason', type: 'text', nullable: true })
   cancelledReason: string;
 
