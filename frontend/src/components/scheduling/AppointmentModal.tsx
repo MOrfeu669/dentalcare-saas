@@ -63,6 +63,22 @@ export function AppointmentModal({
   const [duration, setDuration] = useState<DurationOption>(30);
   const [customDuration, setCustomDuration] = useState(30);
   const [notes, setNotes] = useState('');
+  const [endDate, setEndDate] = useState(defaultStart ? toDateInput(defaultStart) : new Date().toISOString().slice(0, 10));
+  const [endTimeValue, setEndTimeValue] = useState(
+    defaultStart ? toTimeInput(new Date(defaultStart.getTime() + 30 * 60_000)) : '10:00',
+  );
+  const [isAllDay, setIsAllDay] = useState(false);
+
+  const [repeatCommitment, setRepeatCommitment] = useState(false);
+  const [repeatFrequency, setRepeatFrequency] = useState<'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly'>(
+    'weekly',
+  );
+  const [repeatEndType, setRepeatEndType] = useState<'never' | 'specificDate'>('never');
+  const [repeatEndDate, setRepeatEndDate] = useState('');
+
+  const [availability, setAvailability] = useState<'busy' | 'available'>('busy');
+  const [alertEnabled, setAlertEnabled] = useState(false);
+  const [alertMinutesBefore, setAlertMinutesBefore] = useState<15 | 30 | 60 | 120>(30);
 
   // aba Consulta (criação)
   const [patientQuery, setPatientQuery] = useState('');
@@ -129,9 +145,21 @@ export function AppointmentModal({
     setDentistId('');
     setDate(defaultStart ? toDateInput(defaultStart) : new Date().toISOString().slice(0, 10));
     setTime(defaultStart ? toTimeInput(defaultStart) : '09:00');
+    setEndDate(defaultStart ? toDateInput(defaultStart) : new Date().toISOString().slice(0, 10));
+    setEndTimeValue(
+      defaultStart ? toTimeInput(new Date(defaultStart.getTime() + 30 * 60_000)) : '10:00',
+    );
+    setIsAllDay(false);
     setDuration(30);
     setCustomDuration(30);
     setNotes('');
+    setRepeatCommitment(false);
+    setRepeatFrequency('weekly');
+    setRepeatEndType('never');
+    setRepeatEndDate('');
+    setAvailability('busy');
+    setAlertEnabled(false);
+    setAlertMinutesBefore(30);
     setPatientQuery('');
     setPatientResults([]);
     setSelectedPatient(null);
@@ -168,7 +196,20 @@ export function AppointmentModal({
     setSlots(null);
   }
 
+  function calculateWeeklyRecurrenceCount(startDate: string, endDate: string) {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    const diffWeeks = Math.floor((end.getTime() - start.getTime()) / (7 * 24 * 60 * 60_000));
+    return Math.max(2, diffWeeks + 1);
+  }
+
   function buildStartEnd() {
+    if (tab === AppointmentType.COMMITMENT) {
+      const startTime = new Date(`${date}T${isAllDay ? '00:00:00' : `${time}:00`}`);
+      const endTime = new Date(`${endDate}T${isAllDay ? '23:59:00' : `${endTimeValue}:00`}`);
+      return { startTime: startTime.toISOString(), endTime: endTime.toISOString() };
+    }
+
     const startTime = new Date(`${date}T${time}:00`);
     const endTime = new Date(startTime.getTime() + durationMinutes * 60_000);
     return { startTime: startTime.toISOString(), endTime: endTime.toISOString() };
@@ -186,6 +227,18 @@ export function AppointmentModal({
       setError('Informe um título para o compromisso.');
       return;
     }
+    if (tab === AppointmentType.COMMITMENT) {
+      const startTime = new Date(`${date}T${isAllDay ? '00:00:00' : `${time}:00`}`);
+      const endTime = new Date(`${endDate}T${isAllDay ? '23:59:00' : `${endTimeValue}:00`}`);
+      if (endTime <= startTime) {
+        setError('O horário de término deve ser posterior ao início.');
+        return;
+      }
+      if (repeatCommitment && repeatEndType === 'specificDate' && !repeatEndDate) {
+        setError('Informe a data de término da recorrência.');
+        return;
+      }
+    }
     if (!dentistId) {
       setError('Selecione um profissional.');
       return;
@@ -198,6 +251,19 @@ export function AppointmentModal({
     const { startTime, endTime } = buildStartEnd();
 
     setSaving(true);
+    const recurrencePayload =
+      tab === AppointmentType.COMMITMENT && repeatCommitment && repeatFrequency === 'weekly'
+        ? {
+            frequency: 'weekly' as const,
+            count:
+              repeatEndType === 'specificDate' && repeatEndDate
+                ? calculateWeeklyRecurrenceCount(date, repeatEndDate)
+                : 4,
+          }
+        : undefined;
+
+    const computedLabel = label || (availability === 'available' ? 'Disponível' : undefined);
+
     try {
       await appointmentsService.create({
         type: tab,
@@ -208,18 +274,16 @@ export function AppointmentModal({
         endTime,
         notes: notes || undefined,
         autoConfirmationEnabled: tab === AppointmentType.CONSULTATION ? autoConfirmation : undefined,
-        label: label || undefined,
-        labelColor: labelColor || undefined,
+        label: computedLabel || undefined,
+        labelColor:
+          labelColor || (availability === 'available' ? '#CBD5E1' : undefined),
         returnSchedule:
           tab === AppointmentType.CONSULTATION && returnOption !== 'none'
             ? returnOption === 'specific'
               ? { specificDate: returnSpecificDate }
               : { days: returnOption }
             : undefined,
-        recurrence:
-          tab === AppointmentType.CONSULTATION && repeatWeekly
-            ? { frequency: 'weekly', count: repeatCount }
-            : undefined,
+        recurrence: recurrencePayload,
       });
       onSaved?.();
       onClose();
@@ -470,12 +534,159 @@ export function AppointmentModal({
               placeholder="Ex.: Reunião de equipe, bloqueio de horário…"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              maxLength={255}
               required
             />
+
+            <label htmlFor="apptDescription">Descrição</label>
+            <textarea
+              id="apptDescription"
+              placeholder="Descriçao do compromisso "
+              rows={4}
+              maxLength={500}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <span className="appt-char-count">{notes.length}/500</span>
+
+            <p className="appt-section-title">Data e hora</p>
+            <div className="appt-row">
+              <div className="appt-row-field">
+                <label htmlFor="apptStartDate">Data de início</label>
+                <input
+                  id="apptStartDate"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+              </div>
+              {!isAllDay && (
+                <div className="appt-row-field">
+                  <label htmlFor="apptStartTime">Hora inicial</label>
+                  <input
+                    id="apptStartTime"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="appt-row">
+              <div className="appt-row-field">
+                <label htmlFor="apptEndDate">Data de término</label>
+                <input
+                  id="apptEndDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  required
+                />
+              </div>
+              {!isAllDay && (
+                <div className="appt-row-field">
+                  <label htmlFor="apptEndTime">Hora final</label>
+                  <input
+                    id="apptEndTime"
+                    type="time"
+                    value={endTimeValue}
+                    onChange={(e) => setEndTimeValue(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="appt-switch-row">
+              <span>Dia inteiro</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isAllDay}
+                className={`appt-switch${isAllDay ? ' on' : ''}`}
+                onClick={() => setIsAllDay((v) => !v)}
+              >
+                <span className="appt-switch-knob" />
+              </button>
+            </div>
+
+            <div className="appt-switch-row">
+              <span>Repetir compromisso</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={repeatCommitment}
+                className={`appt-switch${repeatCommitment ? ' on' : ''}`}
+                onClick={() => setRepeatCommitment((v) => !v)}
+              >
+                <span className="appt-switch-knob" />
+              </button>
+            </div>
+
+            {repeatCommitment && (
+              <>
+                <div className="appt-return-options">
+                  {(
+                    [
+                      { value: 'daily', label: 'Todos os dias' },
+                      { value: 'weekly', label: 'Semanalmente' },
+                      { value: 'biweekly', label: 'Quinzenalmente' },
+                      { value: 'monthly', label: 'Mensalmente' },
+                      { value: 'yearly', label: 'Anualmente' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      type="button"
+                      key={opt.value}
+                      className={`login-chip${repeatFrequency === opt.value ? ' active' : ''}`}
+                      onClick={() => setRepeatFrequency(opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="appt-switch-row">
+                  <span>Terminar repetição</span>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className={`login-chip${repeatEndType === 'never' ? ' active' : ''}`}
+                      onClick={() => setRepeatEndType('never')}
+                    >
+                      Nunca
+                    </button>
+                    <button
+                      type="button"
+                      className={`login-chip${repeatEndType === 'specificDate' ? ' active' : ''}`}
+                      onClick={() => setRepeatEndType('specificDate')}
+                    >
+                      Data específica
+                    </button>
+                  </div>
+                </div>
+
+                {repeatEndType === 'specificDate' && (
+                  <input
+                    type="date"
+                    value={repeatEndDate}
+                    onChange={(e) => setRepeatEndDate(e.target.value)}
+                    required
+                  />
+                )}
+
+                <p className="appt-inline-notice">
+                  A recorrência semanal é a única opção suportada atualmente pelo backend.
+                </p>
+              </>
+            )}
           </>
         )}
 
-        <label htmlFor="apptDentist">Profissional</label>
+        <label htmlFor="apptDentist">Agenda do profissional</label>
         <select
           id="apptDentist"
           value={dentistId}
@@ -507,86 +718,113 @@ export function AppointmentModal({
               required
             />
           </div>
-          <div className="appt-row-field">
-            <label htmlFor="apptTime">Horário</label>
-            <input id="apptTime" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
-          </div>
-        </div>
-
-        <label htmlFor="apptDuration">Duração</label>
-        <div className="appt-row">
-          <select
-            id="apptDuration"
-            className="appt-row-field"
-            value={duration}
-            onChange={(e) => {
-              const v = e.target.value;
-              setDuration(v === 'custom' ? 'custom' : (Number(v) as DurationOption));
-              setSlots(null);
-            }}
-          >
-            <option value={15}>15 minutos</option>
-            <option value={30}>30 minutos</option>
-            <option value={45}>45 minutos</option>
-            <option value={60}>60 minutos</option>
-            <option value="custom">Personalizado</option>
-          </select>
-          {duration === 'custom' && (
-            <input
-              type="number"
-              min={5}
-              step={5}
-              value={customDuration}
-              onChange={(e) => setCustomDuration(Number(e.target.value))}
-              className="appt-row-field"
-            />
+          {!isAllDay && (
+            <div className="appt-row-field">
+              <label htmlFor="apptTime">Hora inicial</label>
+              <input id="apptTime" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+            </div>
           )}
         </div>
 
-        <button
-          type="button"
-          className="btn-secondary appt-find-slot-btn"
-          onClick={handleFindSlots}
-          disabled={!dentistId || !date || loadingSlots}
-        >
-          {loadingSlots ? 'Buscando…' : '🔍 Encontrar horário livre'}
-        </button>
-
-        {slots && (
-          <div className="appt-slots">
-            {slots.length === 0 ? (
-              <p className="appt-inline-notice">Nenhum horário livre nesse dia.</p>
-            ) : (
-              slots.slice(0, 12).map((s) => {
-                const start = new Date(s.startTime);
-                const slotLabel = toTimeInput(start);
-                return (
-                  <button
-                    type="button"
-                    key={s.startTime}
-                    className="appt-slot-chip"
-                    onClick={() => pickSlot(s)}
-                  >
-                    {slotLabel}
-                  </button>
-                );
-              })
-            )}
+        <div className="appt-row">
+          <div className="appt-row-field">
+            <label htmlFor="apptEndDate">Data de término</label>
+            <input
+              id="apptEndDate"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              required
+            />
           </div>
-        )}
+          {!isAllDay && (
+            <div className="appt-row-field">
+              <label htmlFor="apptEndTime">Hora final</label>
+              <input
+                id="apptEndTime"
+                type="time"
+                value={endTimeValue}
+                onChange={(e) => setEndTimeValue(e.target.value)}
+                required
+              />
+            </div>
+          )}
+        </div>
 
-        <label htmlFor="apptNotes">Observações</label>
-        <textarea
-          id="apptNotes"
-          maxLength={500}
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-        <span className="appt-char-count">{notes.length}/500</span>
-
-        {tab === AppointmentType.CONSULTATION && (
+        {tab === AppointmentType.CONSULTATION ? (
           <>
+            <label htmlFor="apptDuration">Duração</label>
+            <div className="appt-row">
+              <select
+                id="apptDuration"
+                className="appt-row-field"
+                value={duration}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setDuration(v === 'custom' ? 'custom' : (Number(v) as DurationOption));
+                  setSlots(null);
+                }}
+              >
+                <option value={15}>15 minutos</option>
+                <option value={30}>30 minutos</option>
+                <option value={45}>45 minutos</option>
+                <option value={60}>60 minutos</option>
+                <option value="custom">Personalizado</option>
+              </select>
+              {duration === 'custom' && (
+                <input
+                  type="number"
+                  min={5}
+                  step={5}
+                  value={customDuration}
+                  onChange={(e) => setCustomDuration(Number(e.target.value))}
+                  className="appt-row-field"
+                />
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn-secondary appt-find-slot-btn"
+              onClick={handleFindSlots}
+              disabled={!dentistId || !date || loadingSlots}
+            >
+              {loadingSlots ? 'Buscando…' : '🔍 Encontrar horário livre'}
+            </button>
+
+            {slots && (
+              <div className="appt-slots">
+                {slots.length === 0 ? (
+                  <p className="appt-inline-notice">Nenhum horário livre nesse dia.</p>
+                ) : (
+                  slots.slice(0, 12).map((s) => {
+                    const start = new Date(s.startTime);
+                    const slotLabel = toTimeInput(start);
+                    return (
+                      <button
+                        type="button"
+                        key={s.startTime}
+                        className="appt-slot-chip"
+                        onClick={() => pickSlot(s)}
+                      >
+                        {slotLabel}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            <label htmlFor="apptNotes">Observações</label>
+            <textarea
+              id="apptNotes"
+              maxLength={500}
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <span className="appt-char-count">{notes.length}/500</span>
+
             <p className="appt-section-title">Repetir</p>
             <div className="appt-switch-row">
               <span>Repetir semanalmente</span>
@@ -670,6 +908,62 @@ export function AppointmentModal({
                 />
               ))}
             </div>
+          </>
+        ) : (
+          <>
+            <p className="appt-section-title">Configurações extras</p>
+            <div className="appt-return-options">
+              <button
+                type="button"
+                className={`login-chip${availability === 'busy' ? ' active' : ''}`}
+                onClick={() => setAvailability('busy')}
+              >
+                Ocupado
+              </button>
+              <button
+                type="button"
+                className={`login-chip${availability === 'available' ? ' active' : ''}`}
+                onClick={() => setAvailability('available')}
+              >
+                Disponível
+              </button>
+            </div>
+
+            <div className="appt-switch-row">
+              <span>Receber alerta</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={alertEnabled}
+                className={`appt-switch${alertEnabled ? ' on' : ''}`}
+                onClick={() => setAlertEnabled((v) => !v)}
+              >
+                <span className="appt-switch-knob" />
+              </button>
+            </div>
+            {alertEnabled && (
+              <div className="appt-row" style={{ marginTop: 8 }}>
+                <label htmlFor="apptAlertMinutes" style={{ margin: 0, alignSelf: 'center' }}>
+                  Tempo antes do alerta
+                </label>
+                <select
+                  id="apptAlertMinutes"
+                  className="appt-row-field"
+                  value={alertMinutesBefore}
+                  onChange={(e) => setAlertMinutesBefore(Number(e.target.value) as 15 | 30 | 60 | 120)}
+                >
+                  <option value={15}>15 minutos antes</option>
+                  <option value={30}>30 minutos antes</option>
+                  <option value={60}>60 minutos antes</option>
+                  <option value={120}>2 horas antes</option>
+                </select>
+              </div>
+            )}
+            {alertEnabled && (
+              <p className="appt-inline-notice">
+                Alertas para compromissos ainda não são enviados automaticamente.
+              </p>
+            )}
           </>
         )}
 

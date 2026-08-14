@@ -32,8 +32,8 @@ export class PatientsController {
   @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DENTIST)
   findAll(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Query('search') search?: string,
   ) {
     // Query params sempre chegam como string (ou nem chegam). Tipar
